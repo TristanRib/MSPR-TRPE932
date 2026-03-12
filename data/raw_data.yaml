@@ -1,6 +1,6 @@
 name: eCO2mix_RTE_Annuel-Definitif_2023
 version: '1.0'
-created: '2026-03-12 16:06:52'
+created: '2026-03-12 16:37:01'
 domain: energy
 period: '2023'
 data:
@@ -8,7 +8,7 @@ data:
   feature_count: 40
   feature_list:
     Périmètre:
-      description: Texte - France
+      description: France
       type: str
       stats:
         count: 35041.0
