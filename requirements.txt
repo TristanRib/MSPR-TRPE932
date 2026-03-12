@@ -1,0 +1,9 @@
+jupyter
+
+pandas
+numpy
+
+matplotlib
+seaborn
+
+pyyaml
