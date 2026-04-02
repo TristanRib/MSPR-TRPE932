@@ -1,35 +1,33 @@
-name: eCO2mix_RTE_Annuel-Definitif 2020-2024
+name: eCO2mix_RTE_Annuel-Definitif
 version: '1.0'
-created: '2026-04-02 15:20:29'
+created: '2026-04-02 15:33:03'
 domain: energy
-period: '2023'
+period: 2020-2024
 data:
-  instance_count: 175397
+  instance_count: 87696
   feature_count: 40
   feature_list:
     Périmètre:
       description: France
       type: str
       stats:
-        count: 175397.0
-        unique_count: 2.0
-        duplicate_count: 175395.0
+        count: 87696.0
+        unique_count: 1.0
+        duplicate_count: 87695.0
         duplicate_ratio: 1.0
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
       - France
-      - RTE ne pourra être tenu responsable de l'usage qui pourrait être fait des
-        données mises à disposition, ni en cas de prévisions qui se révèleraient imprécises.
     Nature:
       description: Données temps réel / Données consolidées / Données définitives
       type: str
       stats:
-        count: 175392.0
+        count: 87696.0
         unique_count: 1.0
-        duplicate_count: 175391.0
+        duplicate_count: 87695.0
         duplicate_ratio: 1.0
-        missing_count: 5.0
+        missing_count: 0.0
         missing_ratio: 0.0
       sample:
       - Données définitives
@@ -37,11 +35,11 @@ data:
       description: Date du jour (jj/mm/aaaa)
       type: str
       stats:
-        count: 175392.0
+        count: 87696.0
         unique_count: 1827.0
-        duplicate_count: 173565.0
-        duplicate_ratio: 0.99
-        missing_count: 5.0
+        duplicate_count: 85869.0
+        duplicate_ratio: 0.98
+        missing_count: 0.0
         missing_ratio: 0.0
       sample:
       - '2020-01-01'
@@ -50,21 +48,21 @@ data:
       - '2020-01-04'
       - '2020-01-05'
     Heures:
-      description: Point horaire par pas de 15 minutes (hh:mm)
+      description: Point horaire par pas de 30 minutes (hh:mm)
       type: str
       stats:
-        count: 175392.0
-        unique_count: 96.0
-        duplicate_count: 175296.0
+        count: 87696.0
+        unique_count: 48.0
+        duplicate_count: 87648.0
         duplicate_ratio: 1.0
-        missing_count: 5.0
+        missing_count: 0.0
         missing_ratio: 0.0
       sample:
       - 00:00
-      - 00:15
       - 00:30
-      - 00:45
       - 01:00
+      - 01:30
+      - 02:00
     Consommation:
       description: Consommation en MW
       type: float64
@@ -73,8 +71,8 @@ data:
         unique_count: 36823.0
         duplicate_count: 50873.0
         duplicate_ratio: 0.58
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 51127.12482895457
         std: 10993.1549883526
         min: 29124.0
@@ -92,48 +90,48 @@ data:
       description: Prévision J-1 de consommation en MW
       type: float64
       stats:
-        count: 175392.0
-        unique_count: 1725.0
-        duplicate_count: 173667.0
+        count: 87696.0
+        unique_count: 872.0
+        duplicate_count: 86824.0
         duplicate_ratio: 0.99
-        missing_count: 5.0
+        missing_count: 0.0
         missing_ratio: 0.0
-        mean: 50469.43081782522
-        std: 11017.4734635793
+        mean: 50469.42879948914
+        std: 11026.923343257577
         min: 27500.0
-        25%: 42250.0
+        25%: 42300.0
         50%: 48600.0
         75%: 57600.0
         max: 88000.0
       sample:
       - 68000.0
-      - 67300.0
       - 66600.0
-      - 65750.0
       - 64900.0
+      - 65500.0
+      - 65400.0
     Prévision J:
       description: Prévision J de consommation en MW
       type: float64
       stats:
-        count: 175392.0
-        unique_count: 3305.0
-        duplicate_count: 172087.0
+        count: 87696.0
+        unique_count: 1674.0
+        duplicate_count: 86022.0
         duplicate_ratio: 0.98
-        missing_count: 5.0
+        missing_count: 0.0
         missing_ratio: 0.0
-        mean: 50377.82843003102
-        std: 11014.299400903396
+        mean: 50377.582660554646
+        std: 11024.10437150985
         min: 0.0
-        25%: 42350.0
-        50%: 48550.0
+        25%: 42300.0
+        50%: 48600.0
         75%: 57400.0
         max: 88500.0
       sample:
       - 65800.0
-      - 65300.0
       - 64800.0
-      - 64000.0
       - 63200.0
+      - 63800.0
+      - 63300.0
     Fioul:
       description: Production fioul en MW
       type: float64
@@ -142,8 +140,8 @@ data:
         unique_count: 1258.0
         duplicate_count: 86438.0
         duplicate_ratio: 0.99
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 113.80346880131363
         std: 136.0810377998261
         min: 27.0
@@ -165,8 +163,8 @@ data:
         unique_count: 1975.0
         duplicate_count: 85721.0
         duplicate_ratio: 0.98
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 219.23514185367634
         std: 404.6052182775084
         min: 0.0
@@ -188,8 +186,8 @@ data:
         unique_count: 9396.0
         duplicate_count: 78300.0
         duplicate_ratio: 0.89
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 3596.3213943623427
         std: 2530.043143335381
         min: 260.0
@@ -211,8 +209,8 @@ data:
         unique_count: 27254.0
         duplicate_count: 60442.0
         duplicate_ratio: 0.69
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 37776.35190886699
         std: 7093.524873984613
         min: 19164.0
@@ -234,8 +232,8 @@ data:
         unique_count: 15109.0
         duplicate_count: 72587.0
         duplicate_ratio: 0.83
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 4860.836241105638
         std: 3784.67258676799
         min: 60.0
@@ -257,8 +255,8 @@ data:
         unique_count: 11338.0
         duplicate_count: 76358.0
         duplicate_ratio: 0.87
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 2098.9716976829045
         std: 3107.6555316289796
         min: 0.0
@@ -280,8 +278,8 @@ data:
         unique_count: 12930.0
         duplicate_count: 74766.0
         duplicate_ratio: 0.85
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 7029.91259578544
         std: 2841.779174487338
         min: 1532.0
@@ -303,10 +301,10 @@ data:
         unique_count: 3767.0
         duplicate_count: 83929.0
         duplicate_ratio: 0.96
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: -747.585203430031
-        std: 930.1572236349682
+        std: 930.1572236349681
         min: -4086.0
         25%: -1316.0
         50%: -252.0
@@ -326,8 +324,8 @@ data:
         unique_count: 548.0
         duplicate_count: 87148.0
         duplicate_ratio: 0.99
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 1167.267286991425
         std: 79.07643389065564
         min: 863.0
@@ -349,8 +347,8 @@ data:
         unique_count: 23841.0
         duplicate_count: 63855.0
         duplicate_ratio: 0.73
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: -4931.759646962233
         std: 6014.9134999670205
         min: -20083.0
@@ -372,8 +370,8 @@ data:
         unique_count: 102.0
         duplicate_count: 87594.0
         duplicate_ratio: 1.0
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 33.215334792921
         std: 18.943400628318127
         min: 7.0
@@ -392,18 +390,18 @@ data:
         en MW
       type: float64
       stats:
-        count: 96720.0
+        count: 87696.0
         unique_count: 6697.0
-        duplicate_count: 90023.0
-        duplicate_ratio: 0.93
-        missing_count: 78677.0
-        missing_ratio: 0.45
-        mean: -1134.2855148883375
-        std: 1871.1767963382201
+        duplicate_count: 80999.0
+        duplicate_ratio: 0.92
+        missing_count: 0.0
+        missing_ratio: 0.0
+        mean: -1051.9130519065864
+        std: 1892.4895930730047
         min: -4028.0
-        25%: -2566.0
-        50%: -1605.0
-        75%: 149.0
+        25%: -2514.0
+        50%: -1514.0
+        75%: 351.25
         max: 4028.0
       sample:
       - -1704.0
@@ -416,18 +414,18 @@ data:
         en MW
       type: float64
       stats:
-        count: 96720.0
-        unique_count: 6117.0
-        duplicate_count: 90603.0
-        duplicate_ratio: 0.94
-        missing_count: 78677.0
-        missing_ratio: 0.45
-        mean: -171.30497311827958
-        std: 2046.5052493248834
+        count: 87696.0
+        unique_count: 6111.0
+        duplicate_count: 81585.0
+        duplicate_ratio: 0.93
+        missing_count: 0.0
+        missing_ratio: 0.0
+        mean: -71.7312306148513
+        std: 2059.321173857808
         min: -3792.0
-        25%: -2150.0
-        50%: -246.0
-        75%: 1850.0
+        25%: -2100.0
+        50%: 44.5
+        75%: 1943.0
         max: 3838.0
       sample:
       - -226.0
@@ -440,18 +438,18 @@ data:
         en MW
       type: float64
       stats:
-        count: 96720.0
+        count: 87696.0
         unique_count: 5171.0
-        duplicate_count: 91549.0
-        duplicate_ratio: 0.95
-        missing_count: 78677.0
-        missing_ratio: 0.45
-        mean: -2166.6180624483045
-        std: 1131.6114472278134
+        duplicate_count: 82525.0
+        duplicate_ratio: 0.94
+        missing_count: 0.0
+        missing_ratio: 0.0
+        mean: -2126.4066662105456
+        std: 1152.5706807757895
         min: -4947.0
-        25%: -2970.0
-        50%: -2419.0
-        75%: -1600.0
+        25%: -2956.0
+        50%: -2384.0
+        75%: -1536.0
         max: 1660.0
       sample:
       - -1954.0
@@ -464,18 +462,18 @@ data:
         en MW
       type: float64
       stats:
-        count: 96720.0
+        count: 87696.0
         unique_count: 4995.0
-        duplicate_count: 91725.0
-        duplicate_ratio: 0.95
-        missing_count: 78677.0
-        missing_ratio: 0.45
-        mean: -1689.5478804797353
-        std: 1305.2240598627116
+        duplicate_count: 82701.0
+        duplicate_ratio: 0.94
+        missing_count: 0.0
+        missing_ratio: 0.0
+        mean: -1684.9843436416713
+        std: 1307.9474647651548
         min: -4324.0
-        25%: -2600.0
-        50%: -2120.0
-        75%: -899.0
+        25%: -2628.0
+        50%: -2095.0
+        75%: -874.0
         max: 2300.0
       sample:
       - -2267.0
@@ -488,18 +486,18 @@ data:
         commerciaux) en MW
       type: float64
       stats:
-        count: 96720.0
-        unique_count: 15661.0
-        duplicate_count: 81059.0
-        duplicate_ratio: 0.84
-        missing_count: 78677.0
-        missing_ratio: 0.45
-        mean: -140.9818858560794
-        std: 3830.3065869765414
+        count: 87696.0
+        unique_count: 15659.0
+        duplicate_count: 72037.0
+        duplicate_ratio: 0.82
+        missing_count: 0.0
+        missing_ratio: 0.0
+        mean: 166.7929324028462
+        std: 3762.164534501535
         min: -10091.0
-        25%: -3281.0
-        50%: -319.0
-        75%: 2865.0
+        25%: -2900.0
+        50%: 149.0
+        75%: 3082.0
         max: 10991.0
       sample:
       - 1763.0
@@ -515,8 +513,8 @@ data:
         unique_count: 1148.0
         duplicate_count: 86548.0
         duplicate_ratio: 0.99
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 34.85645867542419
         std: 130.87209492290233
         min: 0.0
@@ -538,8 +536,8 @@ data:
         unique_count: 89.0
         duplicate_count: 87607.0
         duplicate_ratio: 1.0
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 68.0429095967889
         std: 14.861853361656316
         min: 14.0
@@ -561,8 +559,8 @@ data:
         unique_count: 207.0
         duplicate_count: 87489.0
         duplicate_ratio: 1.0
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 10.78305738004014
         std: 12.36949234214049
         min: 2.0
@@ -584,8 +582,8 @@ data:
         unique_count: 762.0
         duplicate_count: 86934.0
         duplicate_ratio: 0.99
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 68.09969667943805
         std: 99.84459133103717
         min: 0.0
@@ -607,8 +605,8 @@ data:
         unique_count: 3083.0
         duplicate_count: 84613.0
         duplicate_ratio: 0.96
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 899.8317027002372
         std: 802.7621162185981
         min: 186.0
@@ -630,8 +628,8 @@ data:
         unique_count: 6369.0
         duplicate_count: 81327.0
         duplicate_ratio: 0.93
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 2286.074074074074
         std: 1871.7383250965274
         min: 0.0
@@ -653,8 +651,8 @@ data:
         unique_count: 1677.0
         duplicate_count: 86019.0
         duplicate_ratio: 0.98
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 342.54542966611933
         std: 455.5085518037898
         min: 14.0
@@ -676,8 +674,8 @@ data:
         unique_count: 6415.0
         duplicate_count: 81281.0
         duplicate_ratio: 0.93
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 4551.683235267287
         std: 1454.3106014294533
         min: 1211.0
@@ -699,10 +697,10 @@ data:
         unique_count: 6015.0
         duplicate_count: 81681.0
         duplicate_ratio: 0.93
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 1829.1714103265826
-        std: 1200.4702575702543
+        std: 1200.4702575702545
         min: 46.0
         25%: 920.0
         50%: 1584.0
@@ -722,8 +720,8 @@ data:
         unique_count: 3565.0
         duplicate_count: 84131.0
         duplicate_ratio: 0.96
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 649.0710066593688
         std: 738.105716727614
         min: 0.0
@@ -745,8 +743,8 @@ data:
         unique_count: 310.0
         duplicate_count: 87386.0
         duplicate_ratio: 1.0
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 487.0954889618683
         std: 44.76824387529257
         min: 328.0
@@ -768,8 +766,8 @@ data:
         unique_count: 382.0
         duplicate_count: 87314.0
         duplicate_ratio: 1.0
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 343.60226236088306
         std: 55.41201983915762
         min: 181.0
@@ -791,10 +789,10 @@ data:
         unique_count: 139.0
         duplicate_count: 87557.0
         duplicate_ratio: 1.0
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
         mean: 336.4085249042146
-        std: 12.331008856789106
+        std: 12.331008856789108
         min: 260.0
         25%: 328.0
         50%: 337.0
@@ -810,12 +808,12 @@ data:
       description: ''
       type: object
       stats:
-        count: 105264.0
+        count: 87696.0
         unique_count: 3.0
-        duplicate_count: 105261.0
+        duplicate_count: 87693.0
         duplicate_ratio: 1.0
-        missing_count: 70133.0
-        missing_ratio: 0.4
+        missing_count: 0.0
+        missing_ratio: 0.0
       sample:
       - ND
       - '0'
@@ -824,12 +822,12 @@ data:
       description: Détail injections batteries
       type: object
       stats:
-        count: 105264.0
+        count: 87696.0
         unique_count: 3.0
-        duplicate_count: 105261.0
+        duplicate_count: 87693.0
         duplicate_ratio: 1.0
-        missing_count: 70133.0
-        missing_ratio: 0.4
+        missing_count: 0.0
+        missing_ratio: 0.0
       sample:
       - ND
       - '0'
@@ -842,8 +840,8 @@ data:
         unique_count: 13634.0
         duplicate_count: 74062.0
         duplicate_ratio: 0.84
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
       sample:
       - ND
       - '0'
@@ -858,8 +856,8 @@ data:
         unique_count: 1434.0
         duplicate_count: 86262.0
         duplicate_ratio: 0.98
-        missing_count: 87701.0
-        missing_ratio: 0.5
+        missing_count: 0.0
+        missing_ratio: 0.0
       sample:
       - ND
       - '0'
