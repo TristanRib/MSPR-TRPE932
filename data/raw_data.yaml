@@ -1,8 +1,8 @@
 name: eCO2mix_RTE_Annuel-Definitif
 version: '1.0'
-created: '2026-04-02 15:36:03'
+created: '2026-04-02 15:38:45'
 domain: energy
-period: 2020-2024
+period: 2012-2024
 data:
   instance_count: 227952
   feature_count: 40
