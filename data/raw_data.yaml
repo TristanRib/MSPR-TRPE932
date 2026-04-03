@@ -1,6 +1,6 @@
 name: eCO2mix_RTE_Annuel-Definitif
-version: '1.0'
-created: '2026-04-02 15:38:45'
+version: "1.0"
+created: "2026-04-03 12:28:39"
 domain: energy
 period: 2012-2024
 data:
@@ -9,7 +9,7 @@ data:
   feature_list:
     Périmètre:
       description: France
-      type: str
+      type: object
       stats:
         count: 227952.0
         unique_count: 1.0
@@ -18,10 +18,10 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - France
+        - France
     Nature:
       description: Données temps réel / Données consolidées / Données définitives
-      type: str
+      type: object
       stats:
         count: 227952.0
         unique_count: 1.0
@@ -30,10 +30,10 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - Données définitives
+        - Données définitives
     Date:
       description: Date du jour (jj/mm/aaaa)
-      type: str
+      type: object
       stats:
         count: 227952.0
         unique_count: 4749.0
@@ -42,14 +42,14 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - '2012-01-01'
-      - '2012-01-02'
-      - '2012-01-03'
-      - '2012-01-04'
-      - '2012-01-05'
+        - "2022-01-01"
+        - "2022-01-02"
+        - "2022-01-03"
+        - "2022-01-04"
+        - "2022-01-05"
     Heures:
       description: Point horaire par pas de 30 minutes (hh:mm)
-      type: str
+      type: object
       stats:
         count: 227952.0
         unique_count: 48.0
@@ -58,11 +58,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - 00:00
-      - 00:30
-      - 01:00
-      - 01:30
-      - 02:00
+        - 00:00
+        - 00:30
+        - 01:00
+        - 01:30
+        - 02:00
     Consommation:
       description: Consommation en MW
       type: float64
@@ -81,11 +81,11 @@ data:
         75%: 61042.0
         max: 102098.0
       sample:
-      - 58315.0
-      - 56231.0
-      - 56075.0
-      - 55532.0
-      - 54911.0
+        - 54615.0
+        - 53983.0
+        - 52076.0
+        - 52199.0
+        - 51764.0
     Prévision J-1:
       description: Prévision J-1 de consommation en MW
       type: float64
@@ -104,11 +104,11 @@ data:
         75%: 60500.0
         max: 101000.0
       sample:
-      - 58200.0
-      - 57200.0
-      - 55200.0
-      - 56000.0
-      - 55500.0
+        - 51500.0
+        - 50700.0
+        - 49000.0
+        - 49400.0
+        - 48700.0
     Prévision J:
       description: Prévision J de consommation en MW
       type: float64
@@ -120,18 +120,18 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
         mean: 52674.72412613182
-        std: 11775.292130288071
+        std: 11775.292130288073
         min: 0.0
         25%: 43900.0
         50%: 50900.0
         75%: 60400.0
         max: 102700.0
       sample:
-      - 58200.0
-      - 56900.0
-      - 55100.0
-      - 55400.0
-      - 55000.0
+        - 54200.0
+        - 53300.0
+        - 51500.0
+        - 52200.0
+        - 51200.0
     Fioul:
       description: Production fioul en MW
       type: float64
@@ -150,11 +150,11 @@ data:
         75%: 326.0
         max: 5926.0
       sample:
-      - 492.0
-      - 491.0
-      - 494.0
-      - 493.0
-      - 496.0
+        - 89.0
+        - 102.0
+        - 103.0
+        - 104.0
+        - 106.0
     Charbon:
       description: Production charbon en MW
       type: float64
@@ -173,11 +173,11 @@ data:
         75%: 1192.0
         max: 6265.0
       sample:
-      - 25.0
-      - 26.0
-      - 24.0
-      - 23.0
-      - 21.0
+        - 14.0
+        - 13.0
+        - 12.0
+        - 11.0
+        - 9.0
     Gaz:
       description: Production gaz en MW
       type: float64
@@ -189,18 +189,18 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
         mean: 3345.5505018600406
-        std: 2470.6522569080435
+        std: 2470.652256908043
         min: 234.0
         25%: 1017.0
         50%: 2881.0
         75%: 4956.25
         max: 10591.0
       sample:
-      - 3816.0
-      - 3834.0
-      - 3832.0
-      - 3839.0
-      - 3836.0
+        - 2961.0
+        - 2676.0
+        - 2675.0
+        - 2680.0
+        - 2664.0
     Nucléaire:
       description: Production nucléaire en MW
       type: float64
@@ -219,11 +219,11 @@ data:
         75%: 47327.25
         max: 61712.0
       sample:
-      - 52697.0
-      - 51747.0
-      - 51950.0
-      - 51625.0
-      - 49917.0
+        - 41560.0
+        - 39434.0
+        - 38697.0
+        - 38594.0
+        - 38102.0
     Eolien:
       description: Production éolienne en MW
       type: float64
@@ -242,11 +242,11 @@ data:
         75%: 4524.0
         max: 19744.0
       sample:
-      - 3588.0
-      - 3536.0
-      - 3526.0
-      - 3535.0
-      - 3572.0
+        - 3184.0
+        - 3180.0
+        - 3246.0
+        - 3264.0
+        - 3136.0
     Solaire:
       description: Production solaire en MW
       type: float64
@@ -265,11 +265,11 @@ data:
         75%: 1916.0
         max: 16658.0
       sample:
-      - 0.0
-      - 3.0
-      - 40.0
-      - 114.0
-      - 211.0
+        - 0.0
+        - 13.0
+        - 291.0
+        - 1061.0
+        - 2010.0
     Hydraulique:
       description: Production hydraulique en MW
       type: float64
@@ -288,11 +288,11 @@ data:
         75%: 9025.0
         max: 17947.0
       sample:
-      - 7922.0
-      - 7598.0
-      - 7299.0
-      - 7159.0
-      - 6772.0
+        - 8719.0
+        - 10213.0
+        - 9019.0
+        - 9198.0
+        - 9068.0
     Pompage:
       description: Pompage hydraulique en MW
       type: float64
@@ -311,11 +311,11 @@ data:
         75%: -21.0
         max: -1.0
       sample:
-      - -1139.0
-      - -1730.0
-      - -2134.0
-      - -2449.0
-      - -2486.0
+        - -509.0
+        - -19.0
+        - -55.0
+        - -75.0
+        - -498.0
     Bioénergies:
       description: Production Bioénergies en MW
       type: float64
@@ -327,18 +327,18 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
         mean: 1017.7901531901452
-        std: 188.4917887776599
+        std: 188.49178877765988
         min: 441.0
         25%: 901.0
         50%: 1071.0
         75%: 1153.0
         max: 3252.0
       sample:
-      - 719.0
-      - 721.0
-      - 722.0
-      - 720.0
-      - 726.0
+        - 1248.0
+        - 1247.0
+        - 1252.0
+        - 1258.0
+        - 1244.0
     Ech. physiques:
       description: Solde imports/exports (flux physiques) en MW
       type: float64
@@ -350,20 +350,20 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
         mean: -5697.829345651716
-        std: 4806.132133142081
+        std: 4806.132133142082
         min: -20083.0
         25%: -9109.0
         50%: -6234.0
         75%: -2982.0
         max: 14608.0
       sample:
-      - -9806.0
-      - -9993.0
-      - -9636.0
-      - -9412.0
-      - -7938.0
+        - -2589.0
+        - -2769.0
+        - -2788.0
+        - -2749.0
+        - -1975.0
     Taux de Co2:
-      description: ''
+      description: ""
       type: float64
       stats:
         count: 227952.0
@@ -380,96 +380,136 @@ data:
         75%: 57.0
         max: 141.0
       sample:
-      - 33.0
-      - 34.0
-      - 35.0
-      - 36.0
-      - 38.0
+        - 25.0
+        - 28.0
+        - 29.0
+        - 30.0
+        - 31.0
     Ech. comm. Angleterre:
-      description: Solde imports/exports Angleterre (programmes d'échanges commerciaux)
+      description:
+        Solde imports/exports Angleterre (programmes d'échanges commerciaux)
         en MW
-      type: object
+      type: float64
       stats:
-        count: 227636.0
-        unique_count: 9295.0
-        duplicate_count: 218341.0
-        duplicate_ratio: 0.96
-        missing_count: 316.0
-        missing_ratio: 0.0
-      sample:
-      - '-1750'
-      - '-1546'
-      - '-1739'
-      - '-1601'
-      - '-1585'
-    Ech. comm. Espagne:
-      description: Solde imports/exports Espagne (programmes d'échanges commerciaux)
-        en MW
-      type: object
-      stats:
-        count: 227948.0
-        unique_count: 8553.0
-        duplicate_count: 219395.0
-        duplicate_ratio: 0.96
-        missing_count: 4.0
-        missing_ratio: 0.0
-      sample:
-      - '-1200'
-      - '-1400'
-      - '-690'
-      - '289'
-      - '345'
-    Ech. comm. Italie:
-      description: Solde imports/exports Italie (programmes d'échanges commerciaux)
-        en MW
-      type: object
-      stats:
-        count: 227943.0
-        unique_count: 7807.0
-        duplicate_count: 220136.0
+        count: 227320.0
+        unique_count: 6770.0
+        duplicate_count: 220550.0
         duplicate_ratio: 0.97
-        missing_count: 9.0
+        missing_count: 632.0
         missing_ratio: 0.0
+        mean: -1182.4914437796938
+        std: 1380.3355545303036
+        min: -4028.0
+        25%: -2000.0
+        50%: -1500.0
+        75%: -750.0
+        max: 4028.0
       sample:
-      - '-862'
-      - '-861'
-      - '-833'
-      - '-860'
-      - '-834'
-    Ech. comm. Suisse:
-      description: Solde imports/exports Suisse (programmes d'échanges commerciaux)
+        - 188.0
+        - 177.0
+        - 160.0
+        - 766.0
+        - 1000.0
+    Ech. comm. Espagne:
+      description:
+        Solde imports/exports Espagne (programmes d'échanges commerciaux)
         en MW
-      type: object
+      type: float64
       stats:
-        count: 227948.0
-        unique_count: 8766.0
-        duplicate_count: 219182.0
-        duplicate_ratio: 0.96
-        missing_count: 4.0
+        count: 227944.0
+        unique_count: 6451.0
+        duplicate_count: 221493.0
+        duplicate_ratio: 0.97
+        missing_count: 8.0
         missing_ratio: 0.0
+        mean: -523.8474713087425
+        std: 1734.0156557621833
+        min: -3792.0
+        25%: -2000.0
+        50%: -1000.0
+        75%: 1000.0
+        max: 3838.0
       sample:
-      - '-2625'
-      - '-2327'
-      - '-2125'
-      - '-2105'
-      - '-2123'
+        - -3330.0
+        - -3145.0
+        - -3006.0
+        - -2912.0
+        - -2692.0
+    Ech. comm. Italie:
+      description:
+        Solde imports/exports Italie (programmes d'échanges commerciaux)
+        en MW
+      type: float64
+      stats:
+        count: 227934.0
+        unique_count: 5352.0
+        duplicate_count: 222582.0
+        duplicate_ratio: 0.98
+        missing_count: 18.0
+        missing_ratio: 0.0
+        mean: -2060.248699184852
+        std: 1035.5155558571312
+        min: -4947.0
+        25%: -2784.75
+        50%: -2374.0
+        75%: -1376.0
+        max: 1660.0
+      sample:
+        - -2033.0
+        - -1962.0
+        - -2022.0
+        - -1965.0
+        - -1876.0
+    Ech. comm. Suisse:
+      description:
+        Solde imports/exports Suisse (programmes d'échanges commerciaux)
+        en MW
+      type: float64
+      stats:
+        count: 227944.0
+        unique_count: 5091.0
+        duplicate_count: 222853.0
+        duplicate_ratio: 0.98
+        missing_count: 8.0
+        missing_ratio: 0.0
+        mean: -1607.6252939318429
+        std: 1327.5197410125388
+        min: -4324.0
+        25%: -2701.0
+        50%: -1978.0
+        75%: -685.0
+        max: 2300.0
+      sample:
+        - -3200.0
+        - -3179.0
+        - -3169.0
+        - -3165.0
+        - -3194.0
     Ech. comm. Allemagne-Belgique:
-      description: Solde imports/exports Allemagne-Belgique (programmes d'échanges
+      description:
+        Solde imports/exports Allemagne-Belgique (programmes d'échanges
         commerciaux) en MW
-      type: object
+      type: float64
       stats:
-        count: 227924.0
-        unique_count: 23555.0
-        duplicate_count: 204369.0
-        duplicate_ratio: 0.9
-        missing_count: 28.0
+        count: 227896.0
+        unique_count: 15919.0
+        duplicate_count: 211977.0
+        duplicate_ratio: 0.93
+        missing_count: 56.0
         missing_ratio: 0.0
+        mean: -77.11560097588374
+        std: 3104.846558115842
+        min: -10091.0
+        25%: -2438.0
+        50%: -137.0
+        75%: 2003.0
+        max: 10991.0
       sample:
-      - '-2940'
-      - '-2714'
-      - '-1088'
-      - '-2038'
-      - '-1967'
+        - 5371.0
+        - 5284.0
+        - 5246.0
+        - 5234.0
+        - 6953.0
     Fioul - TAC:
       description: Détail technologie turbine à combustion pour la filière fioul
       type: object
@@ -481,11 +521,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '28'
-      - '27'
-      - '25'
-      - '356'
+        - 0.0
+        - 226.0
+        - 410.0
+        - 409.0
+        - 418.0
     Fioul - Cogén.:
       description: Détail technologie cogénération pour la filière fioul
       type: object
@@ -497,11 +537,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '291'
-      - '297'
-      - '296'
-      - '295'
+        - 85.0
+        - 87.0
+        - 88.0
+        - 89.0
+        - 90.0
     Fioul - Autres:
       description: Détail autres technologies pour la filière fioul
       type: object
@@ -513,11 +553,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '153'
-      - '152'
-      - '151'
-      - '146'
+        - 16.0
+        - 18.0
+        - 20.0
+        - 21.0
+        - 15.0
     Gaz - TAC:
       description: Détail technologie turbine à combustion pour la filière gaz
       type: object
@@ -529,11 +569,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '0'
-      - '34'
-      - '36'
-      - '24'
+        - 26.0
+        - 86.0
+        - 89.0
+        - 90.0
+        - 88.0
     Gaz - Cogén.:
       description: Détail technologie cogénération pour la filière gaz
       type: object
@@ -545,11 +585,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '2858'
-      - '2861'
-      - '2866'
-      - '2860'
+        - 2152.0
+        - 976.0
+        - 979.0
+        - 985.0
+        - 990.0
     Gaz - CCG:
       description: Détail technologie cycle combiné gaz pour la filière gaz
       type: object
@@ -561,11 +601,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '499'
-      - '279'
-      - '284'
-      - '281'
+        - 621.0
+        - 338.0
+        - 342.0
+        - 341.0
+        - 332.0
     Gaz - Autres:
       description: Détail autres technologies pour la filière gaz
       type: object
@@ -577,13 +617,13 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '94'
-      - '93'
-      - '95'
-      - '96'
+        - 162.0
+        - 1275.0
+        - 1266.0
+        - 1264.0
+        - 1256.0
     Hydraulique - Fil de l?eau + éclusée:
-      description: ''
+      description: ""
       type: object
       stats:
         count: 227952.0
@@ -593,11 +633,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '5555'
-      - '5582'
-      - '5453'
-      - '5420'
+        - 6300.0
+        - 6047.0
+        - 5998.0
+        - 5951.0
+        - 5901.0
     Hydraulique - Lacs:
       description: Détail technologie lacs pour la filière hydraulique
       type: object
@@ -609,11 +649,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '1214'
-      - '963'
-      - '735'
-      - '752'
+        - 1439.0
+        - 2494.0
+        - 2388.0
+        - 2080.0
+        - 2095.0
     Hydraulique - STEP turbinage:
       description: Détail technologie STEP turbinage pour la filière hydraulique
       type: object
@@ -625,11 +665,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '758'
-      - '591'
-      - '515'
-      - '212'
+        - 980.0
+        - 1672.0
+        - 633.0
+        - 1167.0
+        - 1072.0
     Bioénergies - Déchets:
       description: Détail technologie déchets pour la filière Bioénergies
       type: object
@@ -641,11 +681,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '478'
-      - '475'
-      - '477'
-      - '486'
+        - 554.0
+        - 551.0
+        - 557.0
+        - 563.0
+        - 564.0
     Bioénergies - Biomasse:
       description: Détail technologie biomasse pour la filière Bioénergies
       type: object
@@ -657,11 +697,11 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '130'
-      - '126'
-      - '125'
-      - '123'
+        - 349.0
+        - 359.0
+        - 356.0
+        - 345.0
+        - 354.0
     Bioénergies - Biogaz:
       description: Détail technologie biogaz pour la filière Bioénergies
       type: object
@@ -673,13 +713,13 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
       sample:
-      - ND
-      - '161'
-      - '159'
-      - '160'
-      - '158'
-    ' Stockage batterie':
-      description: ''
+        - 345.0
+        - 336.0
+        - 339.0
+        - 335.0
+        - 334.0
+    " Stockage batterie":
+      description: ""
       type: object
       stats:
         count: 105216.0
@@ -689,9 +729,9 @@ data:
         missing_count: 122736.0
         missing_ratio: 0.54
       sample:
-      - ND
-      - '0'
-      - 0.0
+        - 0.0
+        - ND
+        - "0"
     Déstockage batterie:
       description: Détail injections batteries
       type: object
@@ -703,9 +743,9 @@ data:
         missing_count: 122736.0
         missing_ratio: 0.54
       sample:
-      - ND
-      - '0'
-      - 0.0
+        - 0.0
+        - ND
+        - "0"
     Eolien terrestre:
       description: Détail technologie éolien terrestre pour la filière Eolien
       type: object
@@ -717,11 +757,11 @@ data:
         missing_count: 122736.0
         missing_ratio: 0.54
       sample:
-      - ND
-      - '0'
-      - 0.0
-      - 3180.0
-      - 3246.0
+        - 0.0
+        - 3180.0
+        - 3246.0
+        - 3264.0
+        - 3136.0
     Eolien offshore:
       description: Détail technologie éolien en mer pour la filière Eolien
       type: object
@@ -733,8 +773,9 @@ data:
         missing_count: 122736.0
         missing_ratio: 0.54
       sample:
-      - ND
-      - '0'
-      - 0.0
-      - 1.0
-      - 2.0
+        - 0.0
+        - 1.0
+        - 2.0
+        - 5.0
+        - 4.0
+
