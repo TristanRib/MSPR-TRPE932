@@ -1,15 +1,15 @@
 name: eCO2mix_RTE_Annuel-Definitif
 version: '1.0'
-created: '2026-04-03 13:32:53'
+created: '2026-04-23 15:55:47'
 domain: energy
-period: 2012-2024
+period: 2012-2026
 data:
   instance_count: 493920
   feature_count: 37
   feature_list:
     Périmètre:
       description: France
-      type: str
+      type: object
       stats:
         count: 493920.0
         unique_count: 1.0
@@ -21,7 +21,7 @@ data:
       - France
     Nature:
       description: Données temps réel / Données consolidées / Données définitives
-      type: str
+      type: object
       stats:
         count: 493920.0
         unique_count: 2.0
@@ -34,7 +34,7 @@ data:
       - Données consolidées
     Date:
       description: Date du jour (jj/mm/aaaa)
-      type: str
+      type: object
       stats:
         count: 493920.0
         unique_count: 5145.0
@@ -50,7 +50,7 @@ data:
       - '2012-01-05'
     Heure:
       description: ''
-      type: str
+      type: object
       stats:
         count: 493920.0
         unique_count: 96.0
@@ -66,7 +66,7 @@ data:
       - 01:00
     Date et Heure:
       description: ''
-      type: str
+      type: object
       stats:
         count: 493920.0
         unique_count: 493864.0
@@ -91,7 +91,7 @@ data:
         missing_count: 246960.0
         missing_ratio: 0.5
         mean: 53084.49234693877
-        std: 11780.297563722806
+        std: 11780.297563722808
         min: 29124.0
         25%: 44182.0
         50%: 51290.5
@@ -137,7 +137,7 @@ data:
         missing_count: 0.0
         missing_ratio: 0.0
         mean: 52542.22480968578
-        std: 11740.470064298577
+        std: 11740.470064298579
         min: 0.0
         25%: 43700.0
         50%: 50800.0
@@ -160,7 +160,7 @@ data:
         missing_count: 246960.0
         missing_ratio: 0.5
         mean: 235.59268707482994
-        std: 266.61298441441085
+        std: 266.6129844144109
         min: 18.0
         25%: 84.0
         50%: 134.0
@@ -229,7 +229,7 @@ data:
         missing_count: 246960.0
         missing_ratio: 0.5
         mean: 42456.79289763524
-        std: 7735.66977260168
+        std: 7735.669772601682
         min: 19164.0
         25%: 37844.0
         50%: 41997.0
@@ -275,7 +275,7 @@ data:
         missing_count: 246960.0
         missing_ratio: 0.5
         mean: 1513.6542800453515
-        std: 2674.2034515668456
+        std: 2674.203451566845
         min: -23.0
         25%: 0.0
         50%: 22.0
@@ -321,7 +321,7 @@ data:
         missing_count: 246960.0
         missing_ratio: 0.5
         mean: -793.3681567865241
-        std: 988.0112681504547
+        std: 988.0112681504548
         min: -4086.0
         25%: -1487.0
         50%: -220.0
@@ -436,7 +436,7 @@ data:
         missing_count: 218936.0
         missing_ratio: 0.44
         mean: -465.792242457743
-        std: 1776.507184681656
+        std: 1776.5071846816563
         min: -3839.0
         25%: -2000.0
         50%: -922.0
@@ -521,7 +521,7 @@ data:
         missing_count: 264529.0
         missing_ratio: 0.54
         mean: 32.296419650291426
-        std: 107.80866850567881
+        std: 107.8086685056788
         min: -67.0
         25%: 6.0
         50%: 13.0
@@ -544,7 +544,7 @@ data:
         missing_count: 264529.0
         missing_ratio: 0.54
         mean: 106.55089781203273
-        std: 69.62980134490603
+        std: 69.62980134490601
         min: 14.0
         25%: 63.0
         50%: 78.0
@@ -567,7 +567,7 @@ data:
         missing_count: 264529.0
         missing_ratio: 0.54
         mean: 73.68900261998073
-        std: 167.99841482885387
+        std: 167.9984148288539
         min: -13.0
         25%: 5.0
         50%: 18.0
@@ -590,7 +590,7 @@ data:
         missing_count: 264529.0
         missing_ratio: 0.54
         mean: 44.85089650422205
-        std: 93.89594032653832
+        std: 93.89594032653834
         min: -10.0
         25%: 0.0
         50%: 5.0
@@ -629,7 +629,7 @@ data:
         missing_count: 264529.0
         missing_ratio: 0.54
         mean: 1963.6382944404968
-        std: 1806.7554355528482
+        std: 1806.755435552848
         min: -18.0
         25%: 226.0
         50%: 1372.0
@@ -652,7 +652,7 @@ data:
         missing_count: 264529.0
         missing_ratio: 0.54
         mean: 231.5532518712591
-        std: 383.805309395947
+        std: 383.80530939594706
         min: 3.0
         25%: 49.0
         50%: 71.0
@@ -721,7 +721,7 @@ data:
         missing_count: 264529.0
         missing_ratio: 0.54
         mean: 674.7255951628442
-        std: 771.1474602249336
+        std: 771.1474602249334
         min: -2.0
         25%: 11.0
         50%: 379.0
@@ -767,7 +767,7 @@ data:
         missing_count: 264529.0
         missing_ratio: 0.54
         mean: 298.7907328535121
-        std: 87.32370853634069
+        std: 87.3237085363407
         min: 111.0
         25%: 246.0
         50%: 296.0
