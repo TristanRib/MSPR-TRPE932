@@ -1,6 +1,6 @@
 name: eCO2mix_RTE_Annuel-Definitif
 version: '1.0'
-created: '2026-04-24 10:12:41'
+updated: 2026-04-24 10:12:28 UTC
 domain: energy
 period: 2012-2026
 data:
@@ -11,11 +11,11 @@ data:
       description: France
       type: object
       stats:
-        count: 493920.0
-        unique_count: 1.0
-        duplicate_count: 493919.0
+        count: 493920
+        unique_count: 1
+        duplicate_count: 493919
         duplicate_ratio: 1.0
-        missing_count: 0.0
+        missing_count: 0
         missing_ratio: 0.0
       sample:
       - France
@@ -23,11 +23,11 @@ data:
       description: Données temps réel / Données consolidées / Données définitives
       type: object
       stats:
-        count: 493920.0
-        unique_count: 2.0
-        duplicate_count: 493918.0
+        count: 493920
+        unique_count: 2
+        duplicate_count: 493918
         duplicate_ratio: 1.0
-        missing_count: 0.0
+        missing_count: 0
         missing_ratio: 0.0
       sample:
       - Données définitives
@@ -36,82 +36,82 @@ data:
       description: Date du jour (jj/mm/aaaa)
       type: object
       stats:
-        count: 493920.0
-        unique_count: 5145.0
-        duplicate_count: 488775.0
+        count: 493920
+        unique_count: 5145
+        duplicate_count: 488775
         duplicate_ratio: 0.99
-        missing_count: 0.0
+        missing_count: 0
         missing_ratio: 0.0
       sample:
-      - '2012-01-01'
-      - '2012-01-02'
-      - '2012-01-03'
-      - '2012-01-04'
-      - '2012-01-05'
+      - '2014-05-21'
+      - '2014-05-22'
+      - '2014-05-23'
+      - '2014-05-24'
+      - '2014-05-25'
     Heure:
-      description: ''
+      description: Point horaire par pas de 15 minutes (hh:mm)
       type: object
       stats:
-        count: 493920.0
-        unique_count: 96.0
-        duplicate_count: 493824.0
+        count: 493920
+        unique_count: 96
+        duplicate_count: 493824
         duplicate_ratio: 1.0
-        missing_count: 0.0
+        missing_count: 0
         missing_ratio: 0.0
       sample:
-      - 00:00
-      - 00:15
-      - 00:30
-      - 00:45
-      - 01:00
+      - '15:00'
+      - '15:15'
+      - '16:45'
+      - '18:45'
+      - '20:30'
     Date et Heure:
-      description: ''
+      description: Horodatage ISO 8601
       type: object
       stats:
-        count: 493920.0
-        unique_count: 493864.0
-        duplicate_count: 56.0
+        count: 493920
+        unique_count: 493864
+        duplicate_count: 56
         duplicate_ratio: 0.0
-        missing_count: 0.0
+        missing_count: 0
         missing_ratio: 0.0
       sample:
-      - '2012-01-01T00:00:00+01:00'
-      - '2012-01-01T00:15:00+01:00'
-      - '2012-01-01T00:30:00+01:00'
-      - '2012-01-01T00:45:00+01:00'
-      - '2012-01-01T01:00:00+01:00'
+      - '2014-05-21T15:00:00+02:00'
+      - '2014-05-21T15:15:00+02:00'
+      - '2014-05-21T16:45:00+02:00'
+      - '2014-05-21T18:45:00+02:00'
+      - '2014-05-21T20:30:00+02:00'
     Consommation (MW):
-      description: ''
+      description: Consommation en MW
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 50017.0
-        duplicate_count: 196943.0
+        count: 246960
+        unique_count: 50017
+        duplicate_count: 196943
         duplicate_ratio: 0.8
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: 53084.49234693877
-        std: 11780.297563722808
+        std: 11780.297563722806
         min: 29124.0
         25%: 44182.0
         50%: 51290.5
         75%: 60981.0
         max: 102098.0
       sample:
-      - 58315.0
-      - 56231.0
-      - 56075.0
-      - 55532.0
-      - 54911.0
+      - 53651.0
+      - 49272.0
+      - 48127.0
+      - 47573.0
+      - 47326.0
     Prévision J-1 (MW):
-      description: ''
+      description: Prévision J-1 de consommation en MW
       type: int64
       stats:
-        count: 493920.0
-        unique_count: 2751.0
-        duplicate_count: 491169.0
+        count: 493920
+        unique_count: 2751
+        duplicate_count: 491169
         duplicate_ratio: 0.99
-        missing_count: 0.0
+        missing_count: 0
         missing_ratio: 0.0
         mean: 52611.99575234856
         std: 11771.763721259778
@@ -121,43 +121,43 @@ data:
         75%: 60450.0
         max: 101000.0
       sample:
-      - 58200
-      - 57700
-      - 57200
-      - 56200
-      - 55200
+      - 52500
+      - 52100
+      - 49850
+      - 50300
+      - 47400
     Prévision J (MW):
-      description: ''
+      description: Prévision J de consommation en MW
       type: int64
       stats:
-        count: 493920.0
-        unique_count: 4920.0
-        duplicate_count: 489000.0
+        count: 493920
+        unique_count: 4920
+        duplicate_count: 489000
         duplicate_ratio: 0.99
-        missing_count: 0.0
+        missing_count: 0
         missing_ratio: 0.0
         mean: 52542.22480968578
-        std: 11740.470064298579
+        std: 11740.470064298575
         min: 0.0
         25%: 43700.0
         50%: 50800.0
         75%: 60300.0
         max: 102700.0
       sample:
-      - 58200
-      - 57550
-      - 56900
-      - 56000
-      - 55100
+      - 53600
+      - 53200
+      - 50850
+      - 51300
+      - 48300
     Fioul (MW):
-      description: ''
+      description: Production fioul en MW
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 2450.0
-        duplicate_count: 244510.0
+        count: 246960
+        unique_count: 2450
+        duplicate_count: 244510
         duplicate_ratio: 0.99
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: 235.59268707482994
         std: 266.6129844144109
@@ -167,20 +167,20 @@ data:
         75%: 315.0
         max: 5926.0
       sample:
-      - 492.0
-      - 491.0
-      - 494.0
-      - 493.0
-      - 496.0
+      - 228.0
+      - 229.0
+      - 231.0
+      - 227.0
+      - 224.0
     Charbon (MW):
-      description: ''
+      description: Production charbon en MW
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 5567.0
-        duplicate_count: 241393.0
+        count: 246960
+        unique_count: 5567
+        duplicate_count: 241393
         duplicate_ratio: 0.98
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: 720.6383057985099
         std: 1048.5126643836943
@@ -190,20 +190,20 @@ data:
         75%: 1104.0
         max: 6265.0
       sample:
-      - 25.0
-      - 26.0
-      - 24.0
-      - 23.0
-      - 21.0
+      - 1267.0
+      - 1363.0
+      - 1313.0
+      - 1305.0
+      - 1170.0
     Gaz (MW):
-      description: ''
+      description: Production gaz en MW
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 9563.0
-        duplicate_count: 237397.0
+        count: 246960
+        unique_count: 9563
+        duplicate_count: 237397
         duplicate_ratio: 0.96
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: 3252.3556365403306
         std: 2467.530793254646
@@ -213,66 +213,66 @@ data:
         75%: 4851.0
         max: 10611.0
       sample:
-      - 3816.0
-      - 3834.0
-      - 3832.0
-      - 3839.0
-      - 3836.0
+      - 1529.0
+      - 1250.0
+      - 1257.0
+      - 1263.0
+      - 1255.0
     Nucléaire (MW):
-      description: ''
+      description: Production nucléaire en MW
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 36603.0
-        duplicate_count: 210357.0
+        count: 246960
+        unique_count: 36603
+        duplicate_count: 210357
         duplicate_ratio: 0.85
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: 42456.79289763524
-        std: 7735.669772601682
+        std: 7735.66977260168
         min: 19164.0
         25%: 37844.0
         50%: 41997.0
         75%: 47501.0
         max: 61712.0
       sample:
-      - 52697.0
-      - 51747.0
-      - 51950.0
-      - 51625.0
-      - 49917.0
+      - 43053.0
+      - 43723.0
+      - 43848.0
+      - 43891.0
+      - 43694.0
     Eolien (MW):
-      description: ''
+      description: Production éolienne en MW
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 16211.0
-        duplicate_count: 230749.0
+        count: 246960
+        unique_count: 16211
+        duplicate_count: 230749
         duplicate_ratio: 0.93
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: 3600.3696954972465
-        std: 3249.308564249253
+        std: 3249.3085642492533
         min: 21.0
         25%: 1314.0
         50%: 2511.0
         75%: 4809.0
         max: 20131.0
       sample:
-      - 3588.0
-      - 3536.0
-      - 3526.0
-      - 3535.0
-      - 3572.0
+      - 2491.0
+      - 3275.0
+      - 3251.0
+      - 2927.0
+      - 3185.0
     Solaire (MW):
-      description: ''
+      description: Production solaire en MW
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 13386.0
-        duplicate_count: 233574.0
+        count: 246960
+        unique_count: 13386
+        duplicate_count: 233574
         duplicate_ratio: 0.95
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: 1513.6542800453515
         std: 2674.203451566845
@@ -282,66 +282,66 @@ data:
         75%: 2044.0
         max: 21627.0
       sample:
+      - 1605.0
+      - 102.0
+      - 26.0
       - 0.0
-      - 3.0
-      - 40.0
-      - 114.0
-      - 211.0
+      - 88.0
     Hydraulique (MW):
-      description: ''
+      description: Production hydraulique en MW
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 14174.0
-        duplicate_count: 232786.0
+        count: 246960
+        unique_count: 14174
+        duplicate_count: 232786
         duplicate_ratio: 0.94
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: 7154.8951814058955
-        std: 2824.596832008879
+        std: 2824.5968320088787
         min: 1387.0
         25%: 5001.0
         50%: 6910.0
         75%: 9019.25
         max: 17947.0
       sample:
-      - 7922.0
-      - 7598.0
-      - 7299.0
-      - 7159.0
-      - 6772.0
+      - 7996.0
+      - 10334.0
+      - 8537.0
+      - 7706.0
+      - 7565.0
     Pompage (MW):
-      description: ''
+      description: Pompage hydraulique en MW
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 3837.0
-        duplicate_count: 243123.0
+        count: 246960
+        unique_count: 3837
+        duplicate_count: 243123
         duplicate_ratio: 0.98
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: -793.3681567865241
-        std: 988.0112681504548
+        std: 988.0112681504546
         min: -4086.0
         25%: -1487.0
         50%: -220.0
         75%: -21.0
         max: -1.0
       sample:
-      - -1139.0
-      - -1730.0
-      - -2134.0
-      - -2449.0
-      - -2486.0
+      - -106.0
+      - -50.0
+      - -230.0
+      - -231.0
+      - -595.0
     Bioénergies (MW):
-      description: ''
+      description: Production Bioénergies en MW
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 1016.0
-        duplicate_count: 245944.0
+        count: 246960
+        unique_count: 1016
+        duplicate_count: 245944
         duplicate_ratio: 1.0
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: 1034.5964771622935
         std: 191.98572520527566
@@ -351,43 +351,43 @@ data:
         75%: 1168.0
         max: 3252.0
       sample:
-      - 719.0
-      - 721.0
-      - 722.0
-      - 720.0
-      - 726.0
+      - 776.0
+      - 775.0
+      - 782.0
+      - 777.0
+      - 783.0
     Ech. physiques (MW):
-      description: ''
+      description: Solde imports/exports (flux physiques) en MW
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 25646.0
-        duplicate_count: 221314.0
+        count: 246960
+        unique_count: 25646
+        duplicate_count: 221314
         duplicate_ratio: 0.9
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: -6065.182782636864
-        std: 4915.403509620968
+        std: 4915.403509620967
         min: -21063.0
         25%: -9539.0
         50%: -6562.0
         75%: -3254.75
         max: 14608.0
       sample:
-      - -9806.0
-      - -9993.0
-      - -9636.0
-      - -9412.0
-      - -7938.0
+      - -5187.0
+      - -11729.0
+      - -10885.0
+      - -10352.0
+      - -10090.0
     Taux de CO2 (g/kWh):
-      description: ''
+      description: Estimation des émissions de CO2 en g/kWh
       type: float64
       stats:
-        count: 246960.0
-        unique_count: 137.0
-        duplicate_count: 246823.0
+        count: 246960
+        unique_count: 137
+        duplicate_count: 246823
         duplicate_ratio: 1.0
-        missing_count: 246960.0
+        missing_count: 246960
         missing_ratio: 0.5
         mean: 42.47439261418853
         std: 24.135129263011223
@@ -397,20 +397,20 @@ data:
         75%: 58.0
         max: 141.0
       sample:
-      - 33.0
-      - 34.0
-      - 35.0
-      - 36.0
-      - 38.0
+      - 45.0
+      - 43.0
+      - 44.0
+      - 46.0
+      - 42.0
     Ech. comm. Angleterre (MW):
-      description: ''
+      description: Solde imports/exports Angleterre en MW
       type: float64
       stats:
-        count: 274360.0
-        unique_count: 6898.0
-        duplicate_count: 267462.0
+        count: 274360
+        unique_count: 6898
+        duplicate_count: 267462
         duplicate_ratio: 0.97
-        missing_count: 219560.0
+        missing_count: 219560
         missing_ratio: 0.44
         mean: -1394.76318340866
         std: 1462.5549496523704
@@ -420,105 +420,105 @@ data:
         75%: -900.0
         max: 4028.0
       sample:
-      - -1750.0
-      - -1546.0
-      - -1739.0
-      - -1601.0
-      - -1585.0
+      - -2000.0
+      - -1800.0
+      - -1848.0
+      - -1985.0
+      - -1901.0
     Ech. comm. Espagne (MW):
-      description: ''
+      description: Solde imports/exports Espagne en MW
       type: float64
       stats:
-        count: 274984.0
-        unique_count: 6671.0
-        duplicate_count: 268313.0
+        count: 274984
+        unique_count: 6671
+        duplicate_count: 268313
         duplicate_ratio: 0.98
-        missing_count: 218936.0
+        missing_count: 218936
         missing_ratio: 0.44
         mean: -465.792242457743
-        std: 1776.5071846816563
+        std: 1776.5071846816559
         min: -3839.0
         25%: -2000.0
         50%: -922.0
         75%: 1000.0
         max: 3838.0
       sample:
-      - -1200.0
-      - -1400.0
-      - -690.0
-      - 289.0
-      - 345.0
+      - 700.0
+      - -277.0
+      - -648.0
+      - -622.0
+      - -323.0
     Ech. comm. Italie (MW):
-      description: ''
+      description: Solde imports/exports Italie en MW
       type: float64
       stats:
-        count: 274974.0
-        unique_count: 5754.0
-        duplicate_count: 269220.0
+        count: 274974
+        unique_count: 5754
+        duplicate_count: 269220
         duplicate_ratio: 0.98
-        missing_count: 218946.0
+        missing_count: 218946
         missing_ratio: 0.44
         mean: -2208.5399928720535
-        std: 1071.73934806915
+        std: 1071.7393480691499
         min: -5013.0
         25%: -2944.0
         50%: -2465.0
         75%: -1542.0
         max: 2495.0
       sample:
-      - -862.0
-      - -861.0
-      - -833.0
-      - -860.0
-      - -834.0
+      - -2273.0
+      - -2120.0
+      - -2231.0
+      - -2233.0
+      - -1753.0
     Ech. comm. Suisse (MW):
-      description: ''
+      description: Solde imports/exports Suisse en MW
       type: float64
       stats:
-        count: 274984.0
-        unique_count: 5094.0
-        duplicate_count: 269890.0
+        count: 274984
+        unique_count: 5094
+        duplicate_count: 269890
         duplicate_ratio: 0.98
-        missing_count: 218936.0
+        missing_count: 218936
         missing_ratio: 0.44
         mean: -1714.338950629855
-        std: 1284.7961719775242
+        std: 1284.7961719775244
         min: -4324.0
         25%: -2718.0
         50%: -2148.0
         75%: -911.0
         max: 2300.0
       sample:
-      - -2625.0
-      - -2327.0
-      - -2125.0
-      - -2105.0
-      - -2123.0
+      - -1093.0
+      - -3000.0
+      - -2698.0
+      - -1154.0
+      - -821.0
     Ech. comm. Allemagne-Belgique (MW):
-      description: ''
+      description: Solde imports/exports Allemagne-Belgique en MW
       type: object
       stats:
-        count: 274964.0
-        unique_count: 28603.0
-        duplicate_count: 246361.0
-        duplicate_ratio: 0.9
-        missing_count: 218956.0
+        count: 274964
+        unique_count: 16241
+        duplicate_count: 258723
+        duplicate_ratio: 0.94
+        missing_count: 218956
         missing_ratio: 0.44
       sample:
-      - -2940.0
-      - '-2714'
-      - '-1088'
-      - -1088.0
-      - '-2038'
+      - '-1019'
+      - '-3256'
+      - '-2467'
+      - '-1571'
+      - '-318'
     Fioul - TAC (MW):
-      description: ''
+      description: Détail technologie turbine à combustion — fioul
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 1267.0
-        duplicate_count: 228124.0
+        count: 229391
+        unique_count: 1267
+        duplicate_count: 228124
         duplicate_ratio: 0.99
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 32.296419650291426
         std: 107.8086685056788
@@ -528,43 +528,43 @@ data:
         75%: 20.0
         max: 1628.0
       sample:
-      - 28.0
-      - 27.0
-      - 25.0
-      - 356.0
-      - 364.0
+      - 12.0
+      - 20.0
+      - 354.0
+      - 355.0
+      - 250.0
     Fioul - Cogénération (MW):
-      description: ''
+      description: Détail technologie cogénération — fioul
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 307.0
-        duplicate_count: 229084.0
+        count: 229391
+        unique_count: 307
+        duplicate_count: 229084
         duplicate_ratio: 1.0
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 106.55089781203273
-        std: 69.62980134490601
+        std: 69.62980134490603
         min: 14.0
         25%: 63.0
         50%: 78.0
         75%: 104.0
         max: 364.0
       sample:
-      - 291.0
-      - 297.0
-      - 296.0
-      - 295.0
-      - 303.0
+      - 198.0
+      - 175.0
+      - 176.0
+      - 187.0
+      - 189.0
     Fioul - Autres (MW):
-      description: ''
+      description: Détail autres technologies — fioul
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 1624.0
-        duplicate_count: 227767.0
+        count: 229391
+        unique_count: 1624
+        duplicate_count: 227767
         duplicate_ratio: 0.99
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 73.68900261998073
         std: 167.9984148288539
@@ -574,20 +574,20 @@ data:
         75%: 44.0
         max: 3576.0
       sample:
-      - 153.0
-      - 152.0
-      - 151.0
-      - 146.0
-      - 148.0
+      - 18.0
+      - 20.0
+      - 19.0
+      - 17.0
+      - 13.0
     Gaz - TAC (MW):
-      description: ''
+      description: Détail technologie turbine à combustion — gaz
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 783.0
-        duplicate_count: 228608.0
+        count: 229391
+        unique_count: 783
+        duplicate_count: 228608
         duplicate_ratio: 1.0
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 44.85089650422205
         std: 93.89594032653834
@@ -597,105 +597,105 @@ data:
         75%: 41.0
         max: 790.0
       sample:
-      - -3.0
-      - -4.0
-      - -1.0
-      - -2.0
-      - 34.0
+      - 2.0
+      - 1.0
+      - 45.0
+      - 28.0
+      - 42.0
     Gaz - Cogénération (MW):
-      description: ''
+      description: Détail technologie cogénération — gaz
       type: object
       stats:
-        count: 246960.0
-        unique_count: 6288.0
-        duplicate_count: 240672.0
-        duplicate_ratio: 0.97
-        missing_count: 246960.0
+        count: 246960
+        unique_count: 3182
+        duplicate_count: 243778
+        duplicate_ratio: 0.99
+        missing_count: 246960
         missing_ratio: 0.5
       sample:
-      - ND
-      - '2858'
-      - '2861'
-      - '2866'
-      - '2860'
+      - '351'
+      - '356'
+      - '391'
+      - '396'
+      - '398'
     Gaz - CCG (MW):
-      description: ''
+      description: Détail technologie cycle combiné gaz
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 6395.0
-        duplicate_count: 222996.0
+        count: 229391
+        unique_count: 6395
+        duplicate_count: 222996
         duplicate_ratio: 0.97
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 1963.6382944404968
-        std: 1806.755435552848
+        std: 1806.7554355528482
         min: -18.0
         25%: 226.0
         50%: 1372.0
         75%: 3515.0
         max: 6580.0
       sample:
-      - 499.0
-      - 279.0
-      - 284.0
-      - 281.0
-      - 280.0
+      - 1118.0
+      - 840.0
+      - 847.0
+      - 853.0
+      - 845.0
     Gaz - Autres (MW):
-      description: ''
+      description: Détail autres technologies — gaz
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 2406.0
-        duplicate_count: 226985.0
+        count: 229391
+        unique_count: 2406
+        duplicate_count: 226985
         duplicate_ratio: 0.99
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 231.5532518712591
-        std: 383.80530939594706
+        std: 383.8053093959471
         min: 3.0
         25%: 49.0
         50%: 71.0
         75%: 117.0
         max: 2530.0
       sample:
-      - 94.0
-      - 93.0
-      - 95.0
-      - 96.0
-      - 97.0
+      - 58.0
+      - 60.0
+      - 61.0
+      - 53.0
+      - 57.0
     Hydraulique - Fil de l'eau + éclusée (MW):
-      description: ''
+      description: Détail fil de l'eau et éclusée — hydraulique
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 6835.0
-        duplicate_count: 222556.0
+        count: 229391
+        unique_count: 6835
+        duplicate_count: 222556
         duplicate_ratio: 0.97
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 4627.230318539088
-        std: 1525.688273017758
+        std: 1525.6882730177585
         min: 1209.0
         25%: 3356.0
         50%: 4745.0
         75%: 5854.0
         max: 8430.0
       sample:
-      - 5555.0
-      - 5582.0
-      - 5453.0
-      - 5420.0
-      - 5261.0
+      - 4974.0
+      - 5979.0
+      - 5931.0
+      - 5594.0
+      - 5443.0
     Hydraulique - Lacs (MW):
-      description: ''
+      description: Détail technologie lacs — hydraulique
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 6248.0
-        duplicate_count: 223143.0
+        count: 229391
+        unique_count: 6248
+        duplicate_count: 223143
         duplicate_ratio: 0.97
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 1848.420413180988
         std: 1142.891633672787
@@ -705,89 +705,89 @@ data:
         75%: 2472.0
         max: 7211.0
       sample:
-      - 1214.0
-      - 963.0
-      - 735.0
-      - 752.0
-      - 688.0
+      - 2110.0
+      - 2281.0
+      - 1909.0
+      - 1642.0
+      - 1675.0
     Hydraulique - STEP turbinage (MW):
-      description: ''
+      description: Détail technologie STEP turbinage — hydraulique
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 3790.0
-        duplicate_count: 225601.0
+        count: 229391
+        unique_count: 3790
+        duplicate_count: 225601
         duplicate_ratio: 0.98
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 674.7255951628442
-        std: 771.1474602249334
+        std: 771.1474602249335
         min: -2.0
         25%: 11.0
         50%: 379.0
         75%: 1083.0
         max: 4293.0
       sample:
-      - 758.0
-      - 591.0
-      - 515.0
-      - 212.0
-      - 199.0
+      - 912.0
+      - 2074.0
+      - 696.0
+      - 470.0
+      - 447.0
     Bioénergies - Déchets (MW):
-      description: ''
+      description: Détail technologie déchets — bioénergies
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 434.0
-        duplicate_count: 228957.0
+        count: 229391
+        unique_count: 434
+        duplicate_count: 228957
         duplicate_ratio: 1.0
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 486.53185608851265
-        std: 59.19450460983967
+        std: 59.19450460983968
         min: 229.0
         25%: 449.0
         50%: 491.0
         75%: 529.0
         max: 2655.0
       sample:
-      - 478.0
-      - 475.0
-      - 477.0
-      - 486.0
-      - 479.0
+      - 427.0
+      - 414.0
+      - 426.0
+      - 423.0
+      - 434.0
     Bioénergies - Biomasse (MW):
-      description: ''
+      description: Détail technologie biomasse — bioénergies
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 483.0
-        duplicate_count: 228908.0
+        count: 229391
+        unique_count: 483
+        duplicate_count: 228908
         duplicate_ratio: 1.0
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 298.7907328535121
-        std: 87.3237085363407
+        std: 87.32370853634067
         min: 111.0
         25%: 246.0
         50%: 296.0
         75%: 355.0
         max: 661.0
       sample:
-      - 130.0
-      - 126.0
-      - 125.0
-      - 123.0
-      - 124.0
+      - 176.0
+      - 182.0
+      - 177.0
+      - 174.0
+      - 175.0
     Bioénergies - Biogaz (MW):
-      description: ''
+      description: Détail technologie biogaz — bioénergies
       type: float64
       stats:
-        count: 229391.0
-        unique_count: 293.0
-        duplicate_count: 229098.0
+        count: 229391
+        unique_count: 293
+        duplicate_count: 229098
         duplicate_ratio: 1.0
-        missing_count: 264529.0
+        missing_count: 264529
         missing_ratio: 0.54
         mean: 277.4855465122869
         std: 64.76457399713311
@@ -797,8 +797,8 @@ data:
         75%: 334.0
         max: 448.0
       sample:
-      - 161.0
-      - 159.0
-      - 160.0
-      - 158.0
-      - 157.0
+      - 172.0
+      - 179.0
+      - 177.0
+      - 174.0
+      - 175.0

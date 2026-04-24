@@ -15,6 +15,7 @@ import pandas as pd
 
 from transform import main as run_transform
 from train import main as run_train
+from datacard import generate as update_datacard
 
 
 def fetch_day(target_date: date) -> pd.DataFrame:
@@ -57,6 +58,7 @@ def main():
         return
 
     append_to_raw(new_df)
+    update_datacard()
     run_transform()
     run_train()
 
