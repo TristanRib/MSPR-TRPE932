@@ -1,0 +1,26 @@
+services:
+  etl:
+    build:
+      context: .
+      dockerfile: etl/Dockerfile
+    volumes:
+      - outputs:/app/outputs
+      - data:/app/data
+    environment:
+      - MODELS_DIR=/app/outputs
+      - DATA_DIR=/app/data
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - outputs:/app/outputs
+    environment:
+      - MODELS_DIR=/app/outputs
+
+volumes:
+  outputs:
+  data:

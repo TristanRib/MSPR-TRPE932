@@ -1,0 +1,13 @@
+### Health check
+GET http://localhost:8080/health
+
+### Infos modèle
+GET http://localhost:8080/model/info
+
+### Prédiction
+POST http://localhost:8080/predict
+Content-Type: application/json
+
+{
+  "features": [-7032.0,27.0,-595.0,1600.0,-1400.0,-2288.0,-4002.0,13.0,51.0,4.0,48.0,498.0,3036.0,121.0,5117.0,3059.0,1289.0,431.0,348.0,343.0,0.0,0.0,4020.0,428.0,-1.000000,-1.836970e-16,0.433884,-0.900969]
+}

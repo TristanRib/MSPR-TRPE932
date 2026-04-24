@@ -7,3 +7,8 @@ matplotlib
 seaborn
 
 pyyaml
+
+scikit-learn
+xgboost
+lightgbm
+joblib
