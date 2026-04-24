@@ -19,12 +19,12 @@ from sklearn.tree import DecisionTreeRegressor
 from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 
-DATA_DIR   = Path(os.getenv("DATA_DIR",   str(ROOT / "data")))
-MODELS_DIR = Path(os.getenv("MODELS_DIR", str(ROOT / "outputs")))
+PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", str(ROOT / "data")))
+MODELS_DIR    = Path(os.getenv("MODELS_DIR",    str(ROOT / "outputs")))
 
 
 def load_data():
-    df = pd.read_csv(DATA_DIR / "transformed_data.csv")
+    df = pd.read_csv(PROCESSED_DIR / "transformed_data.csv")
     X = df.drop(columns=["Consommation"])
     y = df["Consommation"]
     return train_test_split(X, y, test_size=0.2, random_state=42)

@@ -1,0 +1,32 @@
+name: Build & Push
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ vars.REGION }}-docker.pkg.dev
+
+      - name: Build & Push API
+        run: |
+          IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest
+          docker build -f api/Dockerfile -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Build & Push ETL
+        run: |
+          IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/etl:latest
+          docker build -f etl/Dockerfile -t $IMAGE .
+          docker push $IMAGE

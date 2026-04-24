@@ -28,7 +28,7 @@ def model_info():
     """Endpoint dédié au tracking — utile pour ta MSPR."""
     return {
         "model_name": model_name,
-        "models_available": os.listdir("./models")
+        "models_available": os.listdir(MODELS_DIR)
     }
 
 
