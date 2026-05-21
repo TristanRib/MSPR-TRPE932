@@ -18,9 +18,52 @@ from train import main as run_train
 from datacard import generate as update_datacard
 
 
+_API_TO_FRENCH = {
+    "perimetre":                    "Périmètre",
+    "nature":                       "Nature",
+    "date":                         "Date",
+    "heure":                        "Heure",
+    "date_heure":                   "Date et Heure",
+    "consommation":                 "Consommation (MW)",
+    "prevision_j1":                 "Prévision J-1 (MW)",
+    "prevision_j":                  "Prévision J (MW)",
+    "fioul":                        "Fioul (MW)",
+    "charbon":                      "Charbon (MW)",
+    "gaz":                          "Gaz (MW)",
+    "nucleaire":                    "Nucléaire (MW)",
+    "eolien":                       "Eolien (MW)",
+    "solaire":                      "Solaire (MW)",
+    "hydraulique":                  "Hydraulique (MW)",
+    "pompage":                      "Pompage (MW)",
+    "bioenergies":                  "Bioénergies (MW)",
+    "ech_physiques":                "Ech. physiques (MW)",
+    "taux_co2":                     "Taux de CO2 (g/kWh)",
+    "ech_comm_angleterre":          "Ech. comm. Angleterre (MW)",
+    "ech_comm_espagne":             "Ech. comm. Espagne (MW)",
+    "ech_comm_italie":              "Ech. comm. Italie (MW)",
+    "ech_comm_suisse":              "Ech. comm. Suisse (MW)",
+    "ech_comm_allemagne_belgique":  "Ech. comm. Allemagne-Belgique (MW)",
+    "fioul_tac":                    "Fioul - TAC (MW)",
+    "fioul_cogen":                  "Fioul - Cogénération (MW)",
+    "fioul_autres":                 "Fioul - Autres (MW)",
+    "gaz_tac":                      "Gaz - TAC (MW)",
+    "gaz_cogen":                    "Gaz - Cogénération (MW)",
+    "gaz_ccg":                      "Gaz - CCG (MW)",
+    "gaz_autres":                   "Gaz - Autres (MW)",
+    "hydraulique_fil_eau_eclusee":  "Hydraulique - Fil de l'eau + éclusée (MW)",
+    "hydraulique_lacs":             "Hydraulique - Lacs (MW)",
+    "hydraulique_step_turbinage":   "Hydraulique - STEP turbinage (MW)",
+    "bioenergies_dechets":          "Bioénergies - Déchets (MW)",
+    "bioenergies_biomasse":         "Bioénergies - Biomasse (MW)",
+    "bioenergies_biogaz":           "Bioénergies - Biogaz (MW)",
+}
+
+_TR_EXTRA_COLS = {"eolien_terrestre", "eolien_offshore", "stockage_batterie", "destockage_batterie"}
+
+
 def fetch_day(target_date: date) -> pd.DataFrame:
     date_str = target_date.strftime("%Y-%m-%d")
-    url = "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/eco2mix-national-cons-def/exports/csv"
+    url = "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/eco2mix-national-tr/exports/csv"
     params = {
         "where":     f"date='{date_str}'",
         "limit":     -1,
@@ -30,6 +73,8 @@ def fetch_day(target_date: date) -> pd.DataFrame:
     response.raise_for_status()
 
     df = pd.read_csv(StringIO(response.content.decode("utf-8-sig")), sep=";")
+    df = df.drop(columns=[c for c in _TR_EXTRA_COLS if c in df.columns])
+    df = df.rename(columns=_API_TO_FRENCH)
     print(f"{len(df)} lignes récupérées pour le {date_str}")
     return df
 
