@@ -6,9 +6,9 @@ import pandas as pd
 import yaml
 
 ROOT     = Path(__file__).parent.parent
-DATA_DIR = Path(os.getenv("DATA_DIR", str(ROOT / "data")))
-RAW_CSV  = DATA_DIR / "eco2mix-national-cons-def.csv"
-CARD_OUT = DATA_DIR / "raw_data.yaml"
+RAW_DIR  = Path(os.getenv("RAW_DIR", str(ROOT / "data")))
+RAW_CSV  = RAW_DIR / "eco2mix-national-cons-def.csv"
+CARD_OUT = RAW_DIR / "raw_data.yaml"
 
 DESCRIPTIONS = {
     "Périmètre":                          "France",

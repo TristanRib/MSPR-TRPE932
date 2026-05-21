@@ -29,14 +29,14 @@ def fetch_day(target_date: date) -> pd.DataFrame:
     response = requests.get(url, params=params, timeout=30)
     response.raise_for_status()
 
-    df = pd.read_csv(StringIO(response.text), sep=";")
+    df = pd.read_csv(StringIO(response.content.decode("utf-8-sig")), sep=";")
     print(f"{len(df)} lignes récupérées pour le {date_str}")
     return df
 
 
 def append_to_raw(new_df: pd.DataFrame):
-    from transform import DATA_DIR
-    raw_csv = DATA_DIR / "eco2mix-national-cons-def.csv"
+    from transform import RAW_DIR
+    raw_csv = RAW_DIR / "eco2mix-national-cons-def.csv"
 
     existing = pd.read_csv(raw_csv, sep=";", encoding="utf-8-sig", low_memory=False)
     combined = pd.concat([existing, new_df], ignore_index=True)

@@ -7,9 +7,10 @@ import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
 
-ROOT       = Path(__file__).parent.parent
-DATA_DIR   = Path(os.getenv("DATA_DIR",   str(ROOT / "data")))
-MODELS_DIR = Path(os.getenv("MODELS_DIR", str(ROOT / "outputs")))
+ROOT          = Path(__file__).parent.parent
+RAW_DIR       = Path(os.getenv("RAW_DIR",       str(ROOT / "data")))
+PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", str(ROOT / "data")))
+MODELS_DIR    = Path(os.getenv("MODELS_DIR",    str(ROOT / "outputs")))
 
 
 def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -44,7 +45,7 @@ def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     df = pd.read_csv(
-        DATA_DIR / "eco2mix-national-cons-def.csv",
+        RAW_DIR / "eco2mix-national-cons-def.csv",
         sep=";",
         encoding="utf-8-sig",
         index_col=False,
@@ -65,7 +66,8 @@ def main():
     joblib.dump(feature_cols, MODELS_DIR / "feature_cols.pkl")
     print(f"imputer.pkl sauvegardé ({len(feature_cols)} features)")
 
-    df.to_csv(DATA_DIR / "transformed_data.csv", index=False)
+    PROCESSED_DIR.mkdir(exist_ok=True)
+    df.to_csv(PROCESSED_DIR / "transformed_data.csv", index=False)
     print(f"transformed_data.csv sauvegardé ({len(df)} lignes)")
 
 

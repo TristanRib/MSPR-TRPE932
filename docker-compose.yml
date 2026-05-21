@@ -3,24 +3,25 @@ services:
     build:
       context: .
       dockerfile: etl/Dockerfile
+    image: ${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/etl:latest
     volumes:
-      - outputs:/app/outputs
-      - data:/app/data
+      - gcs:/app/gcs
     environment:
-      - MODELS_DIR=/app/outputs
-      - DATA_DIR=/app/data
+      - RAW_DIR=/app/gcs/raw
+      - PROCESSED_DIR=/app/gcs/processed
+      - MODELS_DIR=/app/gcs/models
 
   api:
     build:
       context: .
       dockerfile: api/Dockerfile
+    image: ${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/api:latest
     ports:
       - "8080:8080"
     volumes:
-      - outputs:/app/outputs
+      - gcs:/app/gcs
     environment:
-      - MODELS_DIR=/app/outputs
+      - MODELS_DIR=/app/gcs/models
 
 volumes:
-  outputs:
-  data:
+  gcs:
