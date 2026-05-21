@@ -7,11 +7,13 @@ _here = Path(__file__).parent
 if not (_here / "transform.py").exists():
     sys.path.insert(0, str(_here.parent / "scripts"))
 
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 from io import StringIO
 
 import requests
 import pandas as pd
+import google.auth
+import google.auth.transport.requests
 
 from transform import main as run_transform, RAW_DIR
 from train import main as run_train
@@ -92,6 +94,20 @@ def append_to_raw(new_df: pd.DataFrame):
     print(f"{added} nouvelles lignes ajoutées ({len(combined)} total)")
 
 
+def redeploy_api():
+    credentials, project_id = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    credentials.refresh(google.auth.transport.requests.Request())
+
+    timestamp = datetime.now(timezone.utc).isoformat()
+    url = f"https://run.googleapis.com/v2/projects/{project_id}/locations/europe-west1/services/api"
+    headers = {"Authorization": f"Bearer {credentials.token}", "Content-Type": "application/json"}
+    body = {"template": {"annotations": {"etl-last-run": timestamp}}}
+
+    resp = requests.patch(url, json=body, headers=headers, params={"updateMask": "template.annotations"})
+    resp.raise_for_status()
+    print(f"API redéployée ({timestamp})")
+
+
 def main():
     yesterday = date.today() - timedelta(days=1)
     print(f"--- Pipeline ETL du {yesterday} ---")
@@ -105,6 +121,7 @@ def main():
     update_datacard()
     run_transform()
     run_train()
+    redeploy_api()
 
     print("--- Pipeline terminé ---")
 
