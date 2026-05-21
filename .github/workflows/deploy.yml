@@ -34,3 +34,17 @@ jobs:
           IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/etl:latest
           docker build -f etl/Dockerfile -t $IMAGE .
           docker push $IMAGE
+
+      - name: Deploy API
+        run: |
+          gcloud run deploy api \
+            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest \
+            --region=${{ vars.REGION }} \
+            --quiet
+
+      - name: Update ETL Job
+        run: |
+          gcloud run jobs update etl-job \
+            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/etl:latest \
+            --region=${{ vars.REGION }} \
+            --quiet
