@@ -29,7 +29,7 @@ def fetch_day(target_date: date) -> pd.DataFrame:
     response = requests.get(url, params=params, timeout=30)
     response.raise_for_status()
 
-    df = pd.read_csv(StringIO(response.text), sep=";")
+    df = pd.read_csv(StringIO(response.content.decode("utf-8-sig")), sep=";")
     print(f"{len(df)} lignes récupérées pour le {date_str}")
     return df
 
