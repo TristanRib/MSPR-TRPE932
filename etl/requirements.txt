@@ -6,4 +6,3 @@ joblib
 xgboost
 lightgbm
 pyyaml
-google-auth
