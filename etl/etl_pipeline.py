@@ -13,7 +13,7 @@ from io import StringIO
 import requests
 import pandas as pd
 
-from transform import main as run_transform
+from transform import main as run_transform, RAW_DIR
 from train import main as run_train
 from datacard import generate as update_datacard
 
@@ -35,7 +35,6 @@ def fetch_day(target_date: date) -> pd.DataFrame:
 
 
 def append_to_raw(new_df: pd.DataFrame):
-    from transform import RAW_DIR
     raw_csv = RAW_DIR / "eco2mix-national-cons-def.csv"
 
     existing = pd.read_csv(raw_csv, sep=";", encoding="utf-8-sig", low_memory=False)
