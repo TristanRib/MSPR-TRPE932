@@ -35,6 +35,12 @@ jobs:
           docker build -f apps/etl/Dockerfile -t $IMAGE .
           docker push $IMAGE
 
+      - name: Build & Push train
+        run: |
+          IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/train:latest
+          docker build -f apps/train/Dockerfile -t $IMAGE .
+          docker push $IMAGE
+
       - name: Build & Push forecast
         run: |
           IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/forecast:latest
@@ -54,7 +60,15 @@ jobs:
           gcloud run jobs update etl-job \
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/etl:latest \
             --region=${{ vars.REGION }} \
-            --update-env-vars BQ_METRICS_TABLE=${{ vars.PROJECT }}.mspr_energie.model_runs \
+            --update-env-vars RAW_DIR=/app/gcs/raw \
+            --quiet
+
+      - name: Update train Job
+        run: |
+          gcloud run jobs update train-job \
+            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/train:latest \
+            --region=${{ vars.REGION }} \
+            --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models,PROCESSED_DIR=/app/gcs/processed,BQ_METRICS_TABLE=${{ vars.PROJECT }}.mspr_energie.model_runs \
             --quiet
 
       - name: Update forecast Job

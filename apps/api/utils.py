@@ -1,4 +1,7 @@
-import os, joblib, re
+import os
+import re
+
+import joblib
 
 def load_latest_model(models_dir: str = "../outputs"):
     """Charge automatiquement le modèle avec le numéro de version le plus élevé."""

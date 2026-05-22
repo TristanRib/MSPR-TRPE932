@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
 from utils import load_latest_model
-from transform import prepare_features, RAW_DIR, _DATETIME_COL
+from transform import prepare_features, _WEATHER_COLS
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
@@ -27,13 +27,8 @@ app = FastAPI()
 
 MODELS_DIR = Path(os.getenv("MODELS_DIR", "../outputs"))
 
-_WEATHER_COLS   = ["temperature_2m", "apparent_temperature", "precipitation", "cloud_cover"]
-_OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
-_WEATHER_TTL    = timedelta(hours=1)
-
-_conso_cache: pd.Series | None = None
-_conso_mtime: float = 0.0
-_conso_lock = threading.Lock()
+_OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+_WEATHER_TTL = timedelta(hours=1)
 
 _artifacts: dict | None = None
 _artifacts_lock = threading.Lock()
@@ -41,29 +36,6 @@ _artifacts_lock = threading.Lock()
 _weather_cache: pd.DataFrame | None = None
 _weather_fetched_at: datetime | None = None
 _weather_lock = threading.Lock()
-
-
-def _get_conso() -> pd.Series:
-    global _conso_cache, _conso_mtime
-    raw_path = RAW_DIR / "raw_data.csv"
-    mtime = raw_path.stat().st_mtime
-    if _conso_cache is not None and mtime == _conso_mtime:
-        return _conso_cache
-    with _conso_lock:
-        if _conso_cache is None or mtime != _conso_mtime:
-            _raw = pd.read_csv(
-                raw_path, sep=";", encoding="utf-8-sig",
-                usecols=["Date et Heure", "Consommation (MW)"], low_memory=False,
-            )
-            _raw[_DATETIME_COL] = pd.to_datetime(_raw["Date et Heure"], utc=True)
-            conso = pd.to_numeric(
-                _raw.set_index(_DATETIME_COL)["Consommation (MW)"].replace("ND", np.nan),
-                errors="coerce",
-            )
-            _conso_cache = conso[~conso.index.duplicated(keep="first")]
-            _conso_mtime = mtime
-            log.info(f"conso rechargé depuis raw_data.csv ({len(_conso_cache)} points)")
-    return _conso_cache
 
 
 def _get_artifacts() -> dict:
@@ -93,14 +65,13 @@ def _get_weather() -> pd.DataFrame:
     with _weather_lock:
         if _weather_cache is None or _weather_fetched_at is None or now - _weather_fetched_at >= _WEATHER_TTL:
             params = {
-                "latitude":   46,
-                "longitude":  2,
-                "timezone":   "Europe/Paris",
-                "hourly":     ",".join(_WEATHER_COLS),
-                "past_days":  1,
+                "latitude":      46,
+                "longitude":     2,
+                "timezone":      "Europe/Paris",
+                "hourly":        ",".join(_WEATHER_COLS),
                 "forecast_days": 2,
             }
-            resp = requests.get(_OPEN_METEO_URL, params=params, timeout=30)
+            resp = requests.get(_OPEN_METEO_FORECAST_URL, params=params, timeout=30)
             resp.raise_for_status()
             hourly = resp.json()["hourly"]
 
@@ -118,9 +89,8 @@ def _get_weather() -> pd.DataFrame:
     return _weather_cache
 
 
-# Chargement initial — plante au démarrage si les artefacts sont absents
+# Plante au démarrage si les artefacts sont absents
 _get_artifacts()
-_get_conso()
 
 
 @app.exception_handler(Exception)
@@ -144,14 +114,13 @@ def predict():
         start = (now + delta).replace(second=0, microsecond=0)
         slots = pd.date_range(start, periods=48, freq="30min")
 
-        conso   = _get_conso()
         weather = _get_weather()
         a       = _get_artifacts()
 
         df_slots = pd.DataFrame(
             {"Date et Heure": slots, **{col: weather[col].reindex(slots).values for col in _WEATHER_COLS}}
         )
-        df = prepare_features(df_slots, conso_series=conso)
+        df = prepare_features(df_slots)
 
         X = df.reindex(columns=a["feature_cols"]).values.astype(float)
         X = a["imputer"].transform(X)

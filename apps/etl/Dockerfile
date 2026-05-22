@@ -7,9 +7,8 @@ WORKDIR /app
 COPY apps/etl/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY apps/etl/etl_pipeline.py .
+COPY apps/etl/main.py .
 COPY scripts/transform.py .
-COPY scripts/train.py .
 COPY scripts/datacard.py .
 
-CMD ["python", "etl_pipeline.py"]
+CMD ["python", "main.py"]
