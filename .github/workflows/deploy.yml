@@ -53,7 +53,7 @@ jobs:
       - name: Build & Push predict-to-bq
         run: |
           IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/predict-to-bq:latest
-          docker build -f predict_to_bq/Dockerfile -t $IMAGE .
+          docker build -f predict_to_bq/Dockerfile -t $IMAGE predict_to_bq/
           docker push $IMAGE
 
       - name: Deploy predict-to-bq
