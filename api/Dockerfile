@@ -9,5 +9,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY api/main.py .
 COPY api/utils.py .
+COPY scripts/transform.py .
 
 CMD ["python", "main.py"]
