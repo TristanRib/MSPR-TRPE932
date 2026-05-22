@@ -1,5 +1,7 @@
+import json
 import os
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
@@ -20,6 +22,16 @@ ROOT = Path(__file__).parent.parent
 
 PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", str(ROOT / "data")))
 MODELS_DIR    = Path(os.getenv("MODELS_DIR",    str(ROOT / "outputs")))
+
+# Planchers absolus : utilisés uniquement au premier run (pas d'historique)
+FLOOR_R2       = 0.80
+FLOOR_MAPE     = 0.10
+FLOOR_ACCURACY = 0.70
+
+# Bruit acceptable entre deux runs consécutifs (variation quotidienne des données)
+RUN_NOISE_R2       = 0.005
+RUN_NOISE_MAPE     = 0.005
+RUN_NOISE_ACCURACY = 0.01
 
 
 def load_data():
@@ -63,6 +75,52 @@ def compute_metrics(y_true, y_pred) -> dict:
     }
 
 
+def _extract_best_metrics(run: dict) -> dict:
+    return run["all_models"][run["best_model"]]
+
+
+def check_quality(metrics: dict, history: list[dict]):
+    """
+    Premier run  → planchers absolus (FLOOR_*).
+    Runs suivants → plancher = meilleur modèle du run précédent ± bruit toléré (RUN_NOISE_*).
+    """
+    errors = []
+
+    if not history:
+        if metrics["R2"] < FLOOR_R2:
+            errors.append(f"R² trop bas : {metrics['R2']:.4f} < {FLOOR_R2}")
+        if metrics["MAPE"] > FLOOR_MAPE:
+            errors.append(f"MAPE trop élevé : {metrics['MAPE']:.4f} > {FLOOR_MAPE}")
+        if metrics["Accuracy (±5%)"] < FLOOR_ACCURACY:
+            errors.append(f"Accuracy trop basse : {metrics['Accuracy (±5%)']:.4f} < {FLOOR_ACCURACY}")
+    else:
+        prev = _extract_best_metrics(history[-1])
+        if metrics["R2"] < prev["R2"] - RUN_NOISE_R2:
+            errors.append(f"Régression R² : {metrics['R2']:.4f} < {prev['R2']:.4f} - {RUN_NOISE_R2}")
+        if metrics["MAPE"] > prev["MAPE"] + RUN_NOISE_MAPE:
+            errors.append(f"Régression MAPE : {metrics['MAPE']:.4f} > {prev['MAPE']:.4f} + {RUN_NOISE_MAPE}")
+        if metrics["Accuracy (±5%)"] < prev["Accuracy (±5%)"] - RUN_NOISE_ACCURACY:
+            errors.append(f"Régression Accuracy : {metrics['Accuracy (±5%)']:.4f} < {prev['Accuracy (±5%)']:.4f} - {RUN_NOISE_ACCURACY}")
+
+    if errors:
+        raise RuntimeError("Contrôle qualité échoué :\n" + "\n".join(f"  - {e}" for e in errors))
+
+
+def save_metrics_history(results: list[dict], best_name: str):
+    MODELS_DIR.mkdir(exist_ok=True)
+    history_path = MODELS_DIR / "metrics_history.json"
+    history = json.loads(history_path.read_text()) if history_path.exists() else []
+
+    entry = {
+        "run_at":     datetime.now(timezone.utc).isoformat(),
+        "best_model": best_name,
+        "all_models": {r["Model"]: {k: v for k, v in r.items() if k != "Model"} for r in results},
+    }
+    history.append(entry)
+    history_path.write_text(json.dumps(history, indent=2))
+    print(f"metrics_history.json mis à jour ({len(history)} runs)")
+
+
 def save_model(model, name: str):
     MODELS_DIR.mkdir(exist_ok=True)
     base = f"mspr_edf_{name.lower().replace(' ', '_')}"
@@ -88,8 +146,18 @@ def main():
     results_df = pd.DataFrame(results).sort_values("R2", ascending=False)
     print("\n" + results_df.to_string(index=False))
 
-    best_name = results_df.iloc[0]["Model"]
+    best_row     = results_df.iloc[0]
+    best_name    = best_row["Model"]
+    best_metrics = best_row.drop("Model").to_dict()
+
+    history_path = MODELS_DIR / "metrics_history.json"
+    history = json.loads(history_path.read_text()) if history_path.exists() else []
+
+    check_quality(best_metrics, history)
+
     save_model(models[best_name], best_name)
+    save_metrics_history(results, best_name)
+    print(f"Qualité validée — R²={best_metrics['R2']:.4f}, MAPE={best_metrics['MAPE']:.4f}")
 
 
 if __name__ == "__main__":
