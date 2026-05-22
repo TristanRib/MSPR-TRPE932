@@ -7,8 +7,7 @@ _here = Path(__file__).parent
 if not (_here / "transform.py").exists():
     sys.path.insert(0, str(_here.parent / "scripts"))
 
-import os
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 from io import StringIO
 
 import requests
@@ -94,13 +93,24 @@ def append_to_raw(new_df: pd.DataFrame):
 
 
 def redeploy_api():
-    api_url = os.getenv("API_URL", "")
-    if not api_url:
-        print("API_URL non défini, skip reload")
-        return
-    resp = requests.post(f"{api_url}/reload", timeout=30)
+    meta = {"Metadata-Flavor": "Google"}
+    token = requests.get(
+        "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+        headers=meta, timeout=5,
+    ).json()["access_token"]
+    project_id = requests.get(
+        "http://metadata.google.internal/computeMetadata/v1/project/project-id",
+        headers=meta, timeout=5,
+    ).text
+
+    timestamp = datetime.now(timezone.utc).isoformat()
+    url = f"https://run.googleapis.com/v2/projects/{project_id}/locations/europe-west1/services/api"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    body = {"template": {"annotations": {"etl-last-run": timestamp}}}
+
+    resp = requests.patch(url, json=body, headers=headers, params={"updateMask": "template.annotations"})
     resp.raise_for_status()
-    print(f"API rechargée : {resp.json()['model_loaded']}")
+    print(f"API redéployée ({timestamp})")
 
 
 def main():

@@ -23,12 +23,6 @@ def predict(data: dict):
         "model_used": model_name
     }
 
-@app.post("/reload")
-def reload_model():
-    global model, model_name
-    model, model_name = load_latest_model(MODELS_DIR)
-    return {"status": "reloaded", "model_loaded": model_name}
-
 @app.get("/model/info")
 def model_info():
     """Endpoint dédié au tracking — utile pour ta MSPR."""
