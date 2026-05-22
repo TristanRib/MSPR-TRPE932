@@ -22,9 +22,10 @@ def main():
     ]
 
     client = bigquery.Client()
-    errors = client.insert_rows_json(BQ_TABLE, rows)
-    if errors:
-        raise RuntimeError(f"BigQuery insert errors: {errors}")
+    job_config = bigquery.LoadJobConfig(
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+    )
+    client.load_table_from_json(rows, BQ_TABLE, job_config=job_config).result()
 
     print(f"OK — {len(rows)} prédictions insérées ({run_at})")
 

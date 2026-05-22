@@ -48,6 +48,7 @@ jobs:
           gcloud run jobs update etl-job \
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/etl:latest \
             --region=${{ vars.REGION }} \
+            --update-env-vars BQ_METRICS_TABLE=${{ vars.PROJECT }}.mspr_energie.model_runs \
             --quiet
 
       - name: Build & Push predict-to-bq

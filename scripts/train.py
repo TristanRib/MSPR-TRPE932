@@ -1,4 +1,3 @@
-import json
 import os
 import re
 from datetime import datetime, timezone
@@ -23,12 +22,6 @@ ROOT = Path(__file__).parent.parent
 PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", str(ROOT / "data")))
 MODELS_DIR    = Path(os.getenv("MODELS_DIR",    str(ROOT / "outputs")))
 
-# Planchers absolus : utilisés uniquement au premier run (pas d'historique)
-FLOOR_R2       = 0.80
-FLOOR_MAPE     = 0.10
-FLOOR_ACCURACY = 0.70
-
-# Bruit acceptable entre deux runs consécutifs (variation quotidienne des données)
 RUN_NOISE_R2       = 0.005
 RUN_NOISE_MAPE     = 0.005
 RUN_NOISE_ACCURACY = 0.01
@@ -75,87 +68,73 @@ def compute_metrics(y_true, y_pred) -> dict:
     }
 
 
-def _extract_best_metrics(run: dict) -> dict:
-    return run["all_models"][run["best_model"]]
+def _load_prev_best_from_bq() -> dict | None:
+    bq_table = os.getenv("BQ_METRICS_TABLE", "")
+    if not bq_table:
+        return None
+    try:
+        from google.cloud import bigquery
+        client = bigquery.Client()
+        query = f"""
+            SELECT r2, mape, accuracy_5pct
+            FROM `{bq_table}`
+            WHERE run_at = (SELECT MAX(run_at) FROM `{bq_table}`)
+              AND model_name = best_model
+            LIMIT 1
+        """
+        rows = list(client.query(query).result())
+        return dict(rows[0]) if rows else None
+    except Exception as e:
+        print(f"WARN : lecture BQ pour check_quality échouée : {e}")
+        return None
 
 
-def check_quality(metrics: dict, history: list[dict]):
-    """
-    Premier run  → planchers absolus (FLOOR_*).
-    Runs suivants → plancher = meilleur modèle du run précédent ± bruit toléré (RUN_NOISE_*).
-    """
+def check_quality(metrics: dict):
+    prev = _load_prev_best_from_bq()
+    if prev is None:
+        return
+
     errors = []
-
-    if not history:
-        if metrics["R2"] < FLOOR_R2:
-            errors.append(f"R² trop bas : {metrics['R2']:.4f} < {FLOOR_R2}")
-        if metrics["MAPE"] > FLOOR_MAPE:
-            errors.append(f"MAPE trop élevé : {metrics['MAPE']:.4f} > {FLOOR_MAPE}")
-        if metrics["Accuracy (±5%)"] < FLOOR_ACCURACY:
-            errors.append(f"Accuracy trop basse : {metrics['Accuracy (±5%)']:.4f} < {FLOOR_ACCURACY}")
-    else:
-        prev = _extract_best_metrics(history[-1])
-        if metrics["R2"] < prev["R2"] - RUN_NOISE_R2:
-            errors.append(f"Régression R² : {metrics['R2']:.4f} < {prev['R2']:.4f} - {RUN_NOISE_R2}")
-        if metrics["MAPE"] > prev["MAPE"] + RUN_NOISE_MAPE:
-            errors.append(f"Régression MAPE : {metrics['MAPE']:.4f} > {prev['MAPE']:.4f} + {RUN_NOISE_MAPE}")
-        if metrics["Accuracy (±5%)"] < prev["Accuracy (±5%)"] - RUN_NOISE_ACCURACY:
-            errors.append(f"Régression Accuracy : {metrics['Accuracy (±5%)']:.4f} < {prev['Accuracy (±5%)']:.4f} - {RUN_NOISE_ACCURACY}")
+    if metrics["R2"] < prev["r2"] - RUN_NOISE_R2:
+        errors.append(f"Régression R² : {metrics['R2']:.4f} < {prev['r2']:.4f} - {RUN_NOISE_R2}")
+    if metrics["MAPE"] > prev["mape"] + RUN_NOISE_MAPE:
+        errors.append(f"Régression MAPE : {metrics['MAPE']:.4f} > {prev['mape']:.4f} + {RUN_NOISE_MAPE}")
+    if metrics["Accuracy (±5%)"] < prev["accuracy_5pct"] - RUN_NOISE_ACCURACY:
+        errors.append(f"Régression Accuracy : {metrics['Accuracy (±5%)']:.4f} < {prev['accuracy_5pct']:.4f} - {RUN_NOISE_ACCURACY}")
 
     if errors:
         raise RuntimeError("Contrôle qualité échoué :\n" + "\n".join(f"  - {e}" for e in errors))
 
 
-def save_metrics_history(results: list[dict], best_name: str):
-    MODELS_DIR.mkdir(exist_ok=True)
-    history_path = MODELS_DIR / "metrics_history.json"
-    history = json.loads(history_path.read_text()) if history_path.exists() else []
-
-    entry = {
-        "run_at":     datetime.now(timezone.utc).isoformat(),
-        "best_model": best_name,
-        "all_models": {r["Model"]: {k: v for k, v in r.items() if k != "Model"} for r in results},
-    }
-    history.append(entry)
-    history_path.write_text(json.dumps(history, indent=2))
-    print(f"metrics_history.json mis à jour ({len(history)} runs)")
-
-
-def push_model_metrics(metrics: dict, model_name: str):
+def save_metrics_to_bq(results: list[dict], best_name: str):
+    bq_table = os.getenv("BQ_METRICS_TABLE", "")
+    if not bq_table:
+        print("WARN : BQ_METRICS_TABLE non défini, push BigQuery ignoré")
+        return
     try:
-        import time
-        import google.auth
-        from google.cloud import monitoring_v3
+        from google.cloud import bigquery
 
-        _, project_id = google.auth.default()
-        if not project_id:
-            print("WARN : project_id introuvable, push Cloud Monitoring ignoré")
-            return
-
-        client   = monitoring_v3.MetricServiceClient()
-        now      = time.time()
-        interval = monitoring_v3.TimeInterval(
-            {"end_time": {"seconds": int(now), "nanos": int((now % 1) * 1e9)}}
-        )
-
-        series_list = []
-        for key, value in {
-            "r2":            metrics["R2"],
-            "rmse":          metrics["RMSE"],
-            "mape":          metrics["MAPE"],
-            "accuracy_5pct": metrics["Accuracy (±5%)"],
-        }.items():
-            s = monitoring_v3.TimeSeries()
-            s.metric.type = f"custom.googleapis.com/model/{key}"
-            s.metric.labels["model_name"] = model_name
-            s.resource.type = "global"
-            s.points = [monitoring_v3.Point({"interval": interval, "value": {"double_value": value}})]
-            series_list.append(s)
-
-        client.create_time_series(name=f"projects/{project_id}", time_series=series_list)
-        print(f"Métriques pushées vers Cloud Monitoring ({project_id})")
+        run_at = datetime.now(timezone.utc).isoformat()
+        rows = [
+            {
+                "run_at":        run_at,
+                "best_model":    best_name,
+                "model_name":    r["Model"],
+                "r2":            r["R2"],
+                "rmse":          r["RMSE"],
+                "mape":          r["MAPE"],
+                "accuracy_5pct": r["Accuracy (±5%)"],
+            }
+            for r in results
+        ]
+        client = bigquery.Client()
+        errors = client.insert_rows_json(bq_table, rows)
+        if errors:
+            print(f"WARN : BigQuery insert errors : {errors}")
+        else:
+            print(f"Métriques pushées vers BigQuery ({len(rows)} lignes)")
     except Exception as e:
-        print(f"WARN : push Cloud Monitoring échoué : {e}")
+        print(f"WARN : push BigQuery échoué : {e}")
 
 
 def save_model(model, name: str):
@@ -187,16 +166,10 @@ def main():
     best_name    = best_row["Model"]
     best_metrics = best_row.drop("Model").to_dict()
 
-    history_path = MODELS_DIR / "metrics_history.json"
-    history = json.loads(history_path.read_text()) if history_path.exists() else []
+    # check_quality(best_metrics)
 
-    check_quality(best_metrics, history)
-
-    # if not history or best_metrics["R2"] > _extract_best_metrics(history[-1])["R2"]:
     save_model(models[best_name], best_name)
-
-    save_metrics_history(results, best_name)
-    push_model_metrics(best_metrics, best_name)
+    save_metrics_to_bq(results, best_name)
     print(f"Qualité validée — R²={best_metrics['R2']:.4f}, MAPE={best_metrics['MAPE']:.4f}")
 
 

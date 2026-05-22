@@ -6,4 +6,4 @@ joblib
 xgboost
 lightgbm
 pyyaml
-google-cloud-monitoring
+google-cloud-bigquery
