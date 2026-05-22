@@ -56,11 +56,11 @@ jobs:
           docker build -f predict_to_bq/Dockerfile -t $IMAGE predict_to_bq/
           docker push $IMAGE
 
-      - name: Deploy predict-to-bq
+      - name: Update predict-to-bq Job
         run: |
-          gcloud run deploy predict-to-bq \
+          gcloud run jobs update predict-to-bq \
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/predict-to-bq:latest \
             --region=${{ vars.REGION }} \
-            --no-allow-unauthenticated \
+            --task-timeout=180 \
             --set-env-vars API_URL=https://api-s43aq3mwuq-ew.a.run.app,BQ_TABLE=${{ vars.PROJECT }}.mspr_energie.predictions \
             --quiet

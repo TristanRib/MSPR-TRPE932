@@ -6,4 +6,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY main.py .
 
-CMD ["functions-framework", "--target=fetch_and_store", "--port=8080"]
+CMD ["python", "main.py"]
