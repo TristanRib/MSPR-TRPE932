@@ -2,6 +2,7 @@ import os
 import re
 from pathlib import Path
 
+import holidays
 import joblib
 import numpy as np
 import pandas as pd
@@ -16,15 +17,18 @@ _DATETIME_COL = "date_heure"
 _CONSO_COL    = "Consommation"
 
 
-def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
+def prepare_features(df: pd.DataFrame, conso_series: pd.Series | None = None) -> pd.DataFrame:
     df = df.copy()
 
-    # 1. Normalise les noms : strip unités "(MW)" et unifie "Date et Heure" → "date_heure"
+    # Normalise les noms : strip unités "(MW)" et unifie "Date et Heure" → "date_heure"
     df.columns = [re.sub(r"\s*\(.*?\)\s*$", "", col).strip() for col in df.columns]
     df = df.rename(columns={"Date et Heure": _DATETIME_COL})
 
-    # 2. Encodages temporels cycliques
+    # Datetime UTC
     dt = pd.to_datetime(df[_DATETIME_COL], utc=True)
+    df = df.drop(columns=[_DATETIME_COL])
+
+    # Encodages temporels cycliques
     hour_frac = dt.dt.hour + dt.dt.minute / 60
     df["hour_sin"]  = np.sin(2 * np.pi * hour_frac        / 24)
     df["hour_cos"]  = np.cos(2 * np.pi * hour_frac        / 24)
@@ -33,11 +37,36 @@ def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
     df["month_sin"] = np.sin(2 * np.pi * dt.dt.month      / 12)
     df["month_cos"] = np.cos(2 * np.pi * dt.dt.month      / 12)
 
-    df = df.drop(columns=[_DATETIME_COL])
+    df.index = dt
 
-    # 3. Convertit les colonnes object restantes en numérique ("ND" → NaN)
+    # Jours fériés France métropolitaine
+    fr_holidays = holidays.France()
+    df["is_holiday"] = dt.dt.date.map(lambda d: int(d in fr_holidays)).values
+
+    # Convertit les colonnes object en numérique
     for col in df.select_dtypes(include="object").columns:
         df[col] = pd.to_numeric(df[col].replace("ND", np.nan), errors="coerce")
+
+    # Lags consommation — série externe (inférence) ou interne (entraînement)
+    if conso_series is not None:
+        conso = conso_series
+    else:
+        conso = pd.to_numeric(df[_CONSO_COL], errors="coerce")
+        conso = conso[~conso.index.duplicated(keep="first")]
+    df["conso_h24"]  = conso.reindex(dt - pd.Timedelta(hours=24)).values
+    df["conso_h168"] = conso.reindex(dt - pd.Timedelta(hours=168)).values
+
+    # Transformations et lags météo
+    df["heating_degrees"] = (17 - df["temperature_2m"]).clip(lower=0)
+    df["cooling_degrees"] = (df["temperature_2m"] - 21).clip(lower=0)
+    temp = df["temperature_2m"].copy()
+    temp = temp[~temp.index.duplicated(keep="first")]
+    df["temp_h24"] = temp.reindex(dt - pd.Timedelta(hours=24)).values
+
+    dropna_cols = ["conso_h24", "conso_h168"]
+    if conso_series is None:
+        dropna_cols.append(_CONSO_COL)
+    df = df.dropna(subset=dropna_cols)
 
     return df
 
@@ -51,24 +80,18 @@ def main():
         low_memory=False,
     )
     df = df.sort_values(by=["Date et Heure"], ascending=True).reset_index(drop=True)
-
-    dt = pd.to_datetime(df["Date et Heure"], utc=True)
-
-    df = prepare_features(df)  # "Consommation (MW)" → "Consommation", drop date_heure
-    df.index = dt
-
-    conso = pd.to_numeric(df[_CONSO_COL].replace("ND", np.nan), errors="coerce")
-    conso = conso[~conso.index.duplicated(keep="first")]
-    df["conso_h24"]  = conso.reindex(dt - pd.Timedelta(hours=24)).values
-    df["conso_h168"] = conso.reindex(dt - pd.Timedelta(hours=168)).values
-
-    df = df.dropna(subset=["conso_h24", "conso_h168", _CONSO_COL])
+    df = prepare_features(df)
 
     feature_cols = [
         "hour_sin", "hour_cos",
         "day_sin",  "day_cos",
         "month_sin", "month_cos",
         "conso_h24", "conso_h168",
+        "temperature_2m", "apparent_temperature",
+        "precipitation", "cloud_cover",
+        "heating_degrees", "cooling_degrees",
+        "temp_h24",
+        "is_holiday",
     ]
 
     imputer = SimpleImputer(strategy="median")

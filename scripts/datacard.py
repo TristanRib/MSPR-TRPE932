@@ -48,6 +48,10 @@ DESCRIPTIONS = {
     "Bioénergies - Déchets (MW)":        "Détail technologie déchets — bioénergies",
     "Bioénergies - Biomasse (MW)":       "Détail technologie biomasse — bioénergies",
     "Bioénergies - Biogaz (MW)":         "Détail technologie biogaz — bioénergies",
+    "temperature_2m":                    "Température à 2m du sol en °C (Open-Meteo, lat=46, lon=2)",
+    "apparent_temperature":              "Température ressentie à 2m en °C (Open-Meteo)",
+    "precipitation":                     "Précipitations en mm (Open-Meteo)",
+    "cloud_cover":                       "Couverture nuageuse totale en % (Open-Meteo)",
 }
 
 
@@ -98,11 +102,30 @@ def generate(csv_path: Path = RAW_CSV, out_path: Path = CARD_OUT):
         }
 
     card = {
-        "name":    "eCO2mix_RTE_Annuel-Definitif",
+        "name":    "mspr-edf-raw",
         "version": "1.0",
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         "domain":  "energy",
         "period":  period,
+        "sources": [
+            {
+                "name":        "eCO2mix RTE",
+                "provider":    "Réseau de Transport d'Electricité (RTE)",
+                "url":         "https://odre.opendatasoft.com/explore/dataset/eco2mix-national-tr",
+                "license":     "Open License v2.0 (Etalab)",
+                "granularity": "15 minutes",
+                "columns":     [c for c in df.columns if c not in ("temperature_2m", "apparent_temperature", "precipitation", "cloud_cover")],
+            },
+            {
+                "name":        "Open-Meteo Historical Weather",
+                "provider":    "Open-Meteo",
+                "url":         "https://open-meteo.com",
+                "license":     "CC BY 4.0",
+                "granularity": "1 heure (rééchantillonné 15 min)",
+                "location":    {"latitude": 46, "longitude": 2},
+                "columns":     ["temperature_2m", "apparent_temperature", "precipitation", "cloud_cover"],
+            },
+        ],
         "data": {
             "instance_count": n,
             "feature_count":  len(df.columns),

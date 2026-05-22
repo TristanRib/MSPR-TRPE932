@@ -26,13 +26,13 @@ jobs:
       - name: Build & Push API
         run: |
           IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest
-          docker build -f api/Dockerfile -t $IMAGE .
+          docker build -f apps/api/Dockerfile -t $IMAGE .
           docker push $IMAGE
 
       - name: Build & Push ETL
         run: |
           IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/etl:latest
-          docker build -f etl/Dockerfile -t $IMAGE .
+          docker build -f apps/etl/Dockerfile -t $IMAGE .
           docker push $IMAGE
 
       - name: Deploy API
@@ -40,7 +40,7 @@ jobs:
           gcloud run deploy api \
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest \
             --region=${{ vars.REGION }} \
-            --update-env-vars RAW_DIR=/app/gcs/raw \
+            --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models \
             --quiet
 
       - name: Update ETL Job
@@ -54,7 +54,7 @@ jobs:
       - name: Build & Push forecast
         run: |
           IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/forecast:latest
-          docker build -f forecast/Dockerfile -t $IMAGE forecast/
+          docker build -f apps/forecast/Dockerfile -t $IMAGE apps/forecast/
           docker push $IMAGE
 
       - name: Update forecast Job
