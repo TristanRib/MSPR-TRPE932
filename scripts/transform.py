@@ -25,12 +25,13 @@ def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # 2. Encodages temporels cycliques
     dt = pd.to_datetime(df[_DATETIME_COL], utc=True)
-    df["hour_sin"]  = np.sin(2 * np.pi * dt.dt.hour      / 24)
-    df["hour_cos"]  = np.cos(2 * np.pi * dt.dt.hour      / 24)
-    df["day_sin"]   = np.sin(2 * np.pi * dt.dt.dayofweek / 7)
-    df["day_cos"]   = np.cos(2 * np.pi * dt.dt.dayofweek / 7)
-    df["month_sin"] = np.sin(2 * np.pi * dt.dt.month     / 12)
-    df["month_cos"] = np.cos(2 * np.pi * dt.dt.month     / 12)
+    hour_frac = dt.dt.hour + dt.dt.minute / 60
+    df["hour_sin"]  = np.sin(2 * np.pi * hour_frac        / 24)
+    df["hour_cos"]  = np.cos(2 * np.pi * hour_frac        / 24)
+    df["day_sin"]   = np.sin(2 * np.pi * dt.dt.dayofweek  / 7)
+    df["day_cos"]   = np.cos(2 * np.pi * dt.dt.dayofweek  / 7)
+    df["month_sin"] = np.sin(2 * np.pi * dt.dt.month      / 12)
+    df["month_cos"] = np.cos(2 * np.pi * dt.dt.month      / 12)
 
     df = df.drop(columns=[_DATETIME_COL])
 

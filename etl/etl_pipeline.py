@@ -114,7 +114,8 @@ def redeploy_api():
 
 
 def main():
-    yesterday = date.today() - timedelta(days=1)
+    today     = date.today()
+    yesterday = today - timedelta(days=1)
     print(f"--- Pipeline ETL du {yesterday} ---")
 
     new_df = fetch_day(yesterday)
@@ -123,6 +124,13 @@ def main():
         return
 
     append_to_raw(new_df)
+
+    # Fetch partiel du jour courant pour couvrir les lookups conso_h24 sur 24h
+    today_df = fetch_day(today)
+    if not today_df.empty:
+        append_to_raw(today_df)
+        print(f"Données partielles du jour courant ajoutées ({today})")
+
     update_datacard()
     run_transform()
     run_train()
