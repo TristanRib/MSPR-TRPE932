@@ -63,10 +63,8 @@ def prepare_features(df: pd.DataFrame, conso_series: pd.Series | None = None) ->
     temp = temp[~temp.index.duplicated(keep="first")]
     df["temp_h24"] = temp.reindex(dt - pd.Timedelta(hours=24)).values
 
-    dropna_cols = ["conso_h24", "conso_h168"]
     if conso_series is None:
-        dropna_cols.append(_CONSO_COL)
-    df = df.dropna(subset=dropna_cols)
+        df = df.dropna(subset=["conso_h24", "conso_h168", _CONSO_COL])
 
     return df
 

@@ -17,8 +17,9 @@ from transform import main as run_transform, RAW_DIR
 from train import main as run_train
 from datacard import generate as update_datacard
 
-_WEATHER_COLS = ["temperature_2m", "apparent_temperature", "precipitation", "cloud_cover"]
-_OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+_WEATHER_COLS            = ["temperature_2m", "apparent_temperature", "precipitation", "cloud_cover"]
+_OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+_OPEN_METEO_ARCHIVE_URL  = "https://archive-api.open-meteo.com/v1/archive"
 
 
 _API_TO_FRENCH = {
@@ -76,7 +77,9 @@ def fetch_weather(target_date: date) -> pd.DataFrame:
         "start_date": date_str,
         "end_date":   date_str,
     }
-    resp = requests.get(_OPEN_METEO_URL, params=params, timeout=120)
+    use_archive = (date.today() - target_date).days > 7
+    url  = _OPEN_METEO_ARCHIVE_URL if use_archive else _OPEN_METEO_FORECAST_URL
+    resp = requests.get(url, params=params, timeout=30)
     resp.raise_for_status()
     hourly = resp.json()["hourly"]
 
@@ -132,10 +135,36 @@ def append_to_raw(new_df: pd.DataFrame):
     print(f"{added} nouvelles lignes ajoutées ({len(combined)} total)")
 
 
+def last_date_in_raw() -> date | None:
+    raw_csv = RAW_DIR / "raw_data.csv"
+    df = pd.read_csv(raw_csv, sep=";", encoding="utf-8-sig", usecols=["Date"], low_memory=False)
+    dates = pd.to_datetime(df["Date"], errors="coerce").dropna()
+    return dates.max().date() if not dates.empty else None
+
+
+def backfill(since: date, until: date):
+    missing = [since + timedelta(days=i) for i in range((until - since).days)]
+    if not missing:
+        return
+    print(f"Backfill : {len(missing)} jours manquants ({missing[0]} -> {missing[-1]})")
+    for target in missing:
+        energy = fetch_energy(target)
+        if energy.empty:
+            print(f"  {target} : aucune donnée, ignoré")
+            continue
+        weather = fetch_weather(target)
+        energy  = merge_weather(energy, weather)
+        append_to_raw(energy)
+
+
 def main():
     today     = date.today()
     yesterday = today - timedelta(days=1)
     print(f"--- Pipeline ETL du {yesterday} ---")
+
+    last = last_date_in_raw()
+    if last is not None and last < yesterday:
+        backfill(since=last + timedelta(days=1), until=yesterday)
 
     new_df = fetch_energy(yesterday)
     if new_df.empty:
@@ -148,7 +177,6 @@ def main():
 
     update_datacard()
     run_transform()
-    
     try:
         run_train()
     except RuntimeError as e:

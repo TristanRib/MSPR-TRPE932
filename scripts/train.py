@@ -42,15 +42,19 @@ def build_models() -> dict:
             ("rbf", RBFSampler(gamma=0.1, n_components=500)),
             ("ridge", Ridge()),
         ]),
-        "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1),
+        "Random Forest": RandomForestRegressor(
+            n_estimators=200, max_depth=None, min_samples_split=5,
+            min_samples_leaf=1, max_features="sqrt", random_state=42, n_jobs=-1,
+        ),
         "KNN": Pipeline([
             ("scaler", StandardScaler()),
-            ("model", KNeighborsRegressor(n_neighbors=5)),
+            ("model", KNeighborsRegressor(n_neighbors=50, weights="distance", metric="manhattan", n_jobs=-1)),
         ]),
         "Decision Tree": DecisionTreeRegressor(random_state=42),
         "XGBoost": XGBRegressor(
-            n_estimators=300, learning_rate=0.05, max_depth=6,
-            subsample=0.8, colsample_bytree=0.8, random_state=42, n_jobs=-1,
+            n_estimators=500, learning_rate=0.05, max_depth=6,
+            subsample=0.8, colsample_bytree=0.7, min_child_weight=5,
+            random_state=42, n_jobs=-1,
         ),
         "LightGBM": LGBMRegressor(
             n_estimators=300, learning_rate=0.05, max_depth=-1, num_leaves=31,

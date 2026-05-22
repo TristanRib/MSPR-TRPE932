@@ -35,6 +35,12 @@ jobs:
           docker build -f apps/etl/Dockerfile -t $IMAGE .
           docker push $IMAGE
 
+      - name: Build & Push forecast
+        run: |
+          IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/forecast:latest
+          docker build -f apps/forecast/Dockerfile -t $IMAGE apps/forecast/
+          docker push $IMAGE
+
       - name: Deploy API
         run: |
           gcloud run deploy api \
@@ -50,12 +56,6 @@ jobs:
             --region=${{ vars.REGION }} \
             --update-env-vars BQ_METRICS_TABLE=${{ vars.PROJECT }}.mspr_energie.model_runs \
             --quiet
-
-      - name: Build & Push forecast
-        run: |
-          IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/forecast:latest
-          docker build -f apps/forecast/Dockerfile -t $IMAGE apps/forecast/
-          docker push $IMAGE
 
       - name: Update forecast Job
         run: |
