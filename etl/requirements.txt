@@ -6,3 +6,4 @@ joblib
 xgboost
 lightgbm
 pyyaml
+google-cloud-monitoring

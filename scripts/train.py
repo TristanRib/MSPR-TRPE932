@@ -121,6 +121,41 @@ def save_metrics_history(results: list[dict], best_name: str):
     print(f"metrics_history.json mis à jour ({len(history)} runs)")
 
 
+def push_model_metrics(metrics: dict, model_name: str):
+    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
+    if not project_id:
+        return
+
+    try:
+        import time
+        from google.cloud import monitoring_v3
+
+        client   = monitoring_v3.MetricServiceClient()
+        now      = time.time()
+        interval = monitoring_v3.TimeInterval(
+            {"end_time": {"seconds": int(now), "nanos": int((now % 1) * 1e9)}}
+        )
+
+        series_list = []
+        for key, value in {
+            "r2":            metrics["R2"],
+            "rmse":          metrics["RMSE"],
+            "mape":          metrics["MAPE"],
+            "accuracy_5pct": metrics["Accuracy (±5%)"],
+        }.items():
+            s = monitoring_v3.TimeSeries()
+            s.metric.type = f"custom.googleapis.com/model/{key}"
+            s.metric.labels["model_name"] = model_name
+            s.resource.type = "global"
+            s.points = [monitoring_v3.Point({"interval": interval, "value": {"double_value": value}})]
+            series_list.append(s)
+
+        client.create_time_series(name=f"projects/{project_id}", time_series=series_list)
+        print(f"Métriques pushées vers Cloud Monitoring ({project_id})")
+    except Exception as e:
+        print(f"WARN : push Cloud Monitoring échoué : {e}")
+
+
 def save_model(model, name: str):
     MODELS_DIR.mkdir(exist_ok=True)
     base = f"mspr_edf_{name.lower().replace(' ', '_')}"
@@ -155,8 +190,11 @@ def main():
 
     check_quality(best_metrics, history)
 
+    # if not history or best_metrics["R2"] > _extract_best_metrics(history[-1])["R2"]:
     save_model(models[best_name], best_name)
+
     save_metrics_history(results, best_name)
+    push_model_metrics(best_metrics, best_name)
     print(f"Qualité validée — R²={best_metrics['R2']:.4f}, MAPE={best_metrics['MAPE']:.4f}")
 
 
