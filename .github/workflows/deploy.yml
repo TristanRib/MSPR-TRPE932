@@ -49,3 +49,18 @@ jobs:
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/etl:latest \
             --region=${{ vars.REGION }} \
             --quiet
+
+      - name: Build & Push predict-to-bq
+        run: |
+          IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/predict-to-bq:latest
+          docker build -f predict_to_bq/Dockerfile -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Deploy predict-to-bq
+        run: |
+          gcloud run deploy predict-to-bq \
+            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/predict-to-bq:latest \
+            --region=${{ vars.REGION }} \
+            --no-allow-unauthenticated \
+            --set-env-vars API_URL=https://api-s43aq3mwuq-ew.a.run.app,BQ_TABLE=${{ vars.PROJECT }}.mspr_energie.predictions \
+            --quiet
