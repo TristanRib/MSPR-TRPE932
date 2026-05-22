@@ -51,16 +51,16 @@ jobs:
             --update-env-vars BQ_METRICS_TABLE=${{ vars.PROJECT }}.mspr_energie.model_runs \
             --quiet
 
-      - name: Build & Push predict-to-bq
+      - name: Build & Push forecast
         run: |
-          IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/predict-to-bq:latest
-          docker build -f predict_to_bq/Dockerfile -t $IMAGE predict_to_bq/
+          IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/forecast:latest
+          docker build -f forecast/Dockerfile -t $IMAGE forecast/
           docker push $IMAGE
 
-      - name: Update predict-to-bq Job
+      - name: Update forecast Job
         run: |
-          gcloud run jobs update predict-to-bq \
-            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/predict-to-bq:latest \
+          gcloud run jobs update forecast \
+            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/forecast:latest \
             --region=${{ vars.REGION }} \
             --task-timeout=180 \
             --set-env-vars API_URL=https://api-s43aq3mwuq-ew.a.run.app,BQ_TABLE=${{ vars.PROJECT }}.mspr_energie.predictions \
