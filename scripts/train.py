@@ -122,13 +122,15 @@ def save_metrics_history(results: list[dict], best_name: str):
 
 
 def push_model_metrics(metrics: dict, model_name: str):
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-    if not project_id:
-        return
-
     try:
         import time
+        import google.auth
         from google.cloud import monitoring_v3
+
+        _, project_id = google.auth.default()
+        if not project_id:
+            print("WARN : project_id introuvable, push Cloud Monitoring ignoré")
+            return
 
         client   = monitoring_v3.MetricServiceClient()
         now      = time.time()

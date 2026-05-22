@@ -26,7 +26,6 @@ _conso_mtime: float = 0.0
 _conso_lock = threading.Lock()
 
 _artifacts: dict | None = None
-_artifacts_mtime: float = 0.0
 _artifacts_lock = threading.Lock()
 
 
@@ -54,12 +53,12 @@ def _get_conso() -> pd.Series:
 
 
 def _get_artifacts() -> dict:
-    global _artifacts, _artifacts_mtime
-    mtime = MODELS_DIR.stat().st_mtime
-    if _artifacts is not None and mtime == _artifacts_mtime:
+    global _artifacts
+    _, latest_name = load_latest_model(str(MODELS_DIR))
+    if _artifacts is not None and _artifacts["model_name"] == latest_name:
         return _artifacts
     with _artifacts_lock:
-        if _artifacts is None or mtime != _artifacts_mtime:
+        if _artifacts is None or _artifacts["model_name"] != latest_name:
             model, model_name = load_latest_model(str(MODELS_DIR))
             _artifacts = {
                 "model":        model,
@@ -67,7 +66,6 @@ def _get_artifacts() -> dict:
                 "imputer":      joblib.load(MODELS_DIR / "imputer.pkl"),
                 "feature_cols": joblib.load(MODELS_DIR / "feature_cols.pkl"),
             }
-            _artifacts_mtime = mtime
             log.info(f"Artefacts rechargés : {model_name}")
     return _artifacts
 
