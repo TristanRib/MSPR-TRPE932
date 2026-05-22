@@ -18,6 +18,26 @@ _CONSO_COL    = "Consommation"
 _WEATHER_COLS = ["temperature_2m", "apparent_temperature", "precipitation", "cloud_cover"]
 
 
+def add_lags(
+    df: pd.DataFrame,
+    conso_hist: pd.Series | None = None,
+    temp_hist: pd.Series | None = None,
+) -> pd.DataFrame:
+    """Ajoute conso_h24, conso_h168, temp_h24.
+    En mode entraînement (historiques None) : shift sur df.
+    En mode API (historiques fournis) : lookup dans les séries indexées UTC."""
+    df = df.copy()
+    if conso_hist is not None and temp_hist is not None:
+        df["conso_h24"]  = conso_hist.reindex(df.index - pd.Timedelta(hours=24)).values
+        df["conso_h168"] = conso_hist.reindex(df.index - pd.Timedelta(hours=168)).values
+        df["temp_h24"]   = temp_hist.reindex(df.index - pd.Timedelta(hours=24)).values
+    else:
+        df["conso_h24"]  = df[_CONSO_COL].shift(96)   # 96 × 15 min = 24 h
+        df["conso_h168"] = df[_CONSO_COL].shift(672)  # 672 × 15 min = 7 j
+        df["temp_h24"]   = df["temperature_2m"].shift(96)
+    return df
+
+
 def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
@@ -59,7 +79,8 @@ def main():
     )
     df = df.sort_values(by=["Date et Heure"], ascending=True).reset_index(drop=True)
     df = prepare_features(df)
-    df = df.dropna(subset=[_CONSO_COL])
+    df = add_lags(df)
+    df = df.dropna(subset=[_CONSO_COL, "conso_h24", "conso_h168", "temp_h24"])
 
     feature_cols = [
         "hour_sin", "hour_cos",
@@ -69,6 +90,7 @@ def main():
         "precipitation", "cloud_cover",
         "heating_degrees", "cooling_degrees",
         "is_holiday",
+        "conso_h24", "conso_h168", "temp_h24",
     ]
 
     imputer = SimpleImputer(strategy="median")

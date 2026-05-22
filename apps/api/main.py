@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
 from utils import load_latest_model
-from transform import prepare_features, _WEATHER_COLS
+from transform import prepare_features, add_lags, _WEATHER_COLS
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
@@ -26,9 +26,11 @@ log = logging.getLogger(__name__)
 app = FastAPI()
 
 MODELS_DIR = Path(os.getenv("MODELS_DIR", "../outputs"))
+RAW_DIR    = Path(os.getenv("RAW_DIR",    "../data"))
 
 _OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 _WEATHER_TTL = timedelta(hours=1)
+_RAW_TTL     = timedelta(minutes=30)
 
 _artifacts: dict | None = None
 _artifacts_lock = threading.Lock()
@@ -36,6 +38,10 @@ _artifacts_lock = threading.Lock()
 _weather_cache: pd.DataFrame | None = None
 _weather_fetched_at: datetime | None = None
 _weather_lock = threading.Lock()
+
+_raw_cache: tuple[pd.Series, pd.Series] | None = None
+_raw_fetched_at: datetime | None = None
+_raw_lock = threading.Lock()
 
 
 def _get_artifacts() -> dict:
@@ -54,6 +60,55 @@ def _get_artifacts() -> dict:
             }
             log.info(f"Artefacts rechargés : {model_name}")
     return _artifacts
+
+
+def _get_raw_history() -> tuple[pd.Series, pd.Series]:
+    """Retourne (conso_hist, temp_hist) indexées par datetimes UTC.
+    Utilisé pour calculer les lags H-24 et H-168."""
+    global _raw_cache, _raw_fetched_at
+    now = datetime.now(timezone.utc)
+    if _raw_cache is not None and _raw_fetched_at is not None:
+        if now - _raw_fetched_at < _RAW_TTL:
+            return _raw_cache
+    with _raw_lock:
+        if _raw_cache is None or _raw_fetched_at is None or now - _raw_fetched_at >= _RAW_TTL:
+            df = pd.read_csv(
+                RAW_DIR / "raw_data.csv",
+                sep=";", encoding="utf-8-sig",
+                usecols=["Date et Heure", "Consommation (MW)", "temperature_2m"],
+                low_memory=False,
+            )
+            dt = pd.to_datetime(df["Date et Heure"], utc=True)
+            conso = pd.Series(pd.to_numeric(df["Consommation (MW)"], errors="coerce").values, index=dt)
+            temp  = pd.Series(pd.to_numeric(df["temperature_2m"],    errors="coerce").values, index=dt)
+            _raw_cache = (conso, temp)
+            _raw_fetched_at = now
+            log.info(f"raw_data.csv rechargé : {len(dt)} slots")
+    return _raw_cache
+
+
+def _get_raw_history() -> tuple[pd.Series, pd.Series]:
+    """Retourne (conso_hist, temp_hist) indexées par datetimes UTC pour les lags."""
+    global _raw_cache, _raw_fetched_at
+    now = datetime.now(timezone.utc)
+    if _raw_cache is not None and _raw_fetched_at is not None:
+        if now - _raw_fetched_at < _RAW_TTL:
+            return _raw_cache
+    with _raw_lock:
+        if _raw_cache is None or _raw_fetched_at is None or now - _raw_fetched_at >= _RAW_TTL:
+            df = pd.read_csv(
+                RAW_DIR / "raw_data.csv",
+                sep=";", encoding="utf-8-sig",
+                usecols=["Date et Heure", "Consommation (MW)", "temperature_2m"],
+                low_memory=False,
+            )
+            dt    = pd.to_datetime(df["Date et Heure"], utc=True)
+            conso = pd.Series(pd.to_numeric(df["Consommation (MW)"], errors="coerce").values, index=dt)
+            temp  = pd.Series(pd.to_numeric(df["temperature_2m"],    errors="coerce").values, index=dt)
+            _raw_cache = (conso, temp)
+            _raw_fetched_at = now
+            log.info(f"raw_data.csv rechargé : {len(dt)} slots")
+    return _raw_cache
 
 
 def _get_weather() -> pd.DataFrame:
@@ -114,13 +169,15 @@ def predict():
         start = (now + delta).replace(second=0, microsecond=0)
         slots = pd.date_range(start, periods=48, freq="30min")
 
-        weather = _get_weather()
-        a       = _get_artifacts()
+        weather               = _get_weather()
+        a                     = _get_artifacts()
+        conso_hist, temp_hist = _get_raw_history()
 
         df_slots = pd.DataFrame(
             {"Date et Heure": slots, **{col: weather[col].reindex(slots).values for col in _WEATHER_COLS}}
         )
         df = prepare_features(df_slots)
+        df = add_lags(df, conso_hist=conso_hist, temp_hist=temp_hist)
 
         X = df.reindex(columns=a["feature_cols"]).values.astype(float)
         X = a["imputer"].transform(X)
