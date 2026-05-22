@@ -1,13 +1,46 @@
 ### Health check
-GET http://localhost:8080/health
+GET https://api-1087457673688.europe-west1.run.app/health
 
-### Infos modèle
-GET http://localhost:8080/model/info
+### Infos modèle (liste features attendues)
+GET https://api-1087457673688.europe-west1.run.app/model/info
 
-### Prédiction
-POST http://localhost:8080/predict
+### Prédiction avec données brutes (format API ODRE temps réel)
+POST https://api-1087457673688.europe-west1.run.app/predict
 Content-Type: application/json
 
 {
-  "features": [-7032.0,27.0,-595.0,1600.0,-1400.0,-2288.0,-4002.0,13.0,51.0,4.0,48.0,498.0,3036.0,121.0,5117.0,3059.0,1289.0,431.0,348.0,343.0,0.0,0.0,4020.0,428.0,-1.000000,-1.836970e-16,0.433884,-0.900969]
+  "data": {
+    "date_heure": "2026-05-20T00:30:00+00:00",
+    "prevision_j1": 42600,
+    "prevision_j": 42600,
+    "fioul": 36,
+    "charbon": 0,
+    "gaz": 344,
+    "nucleaire": 42895,
+    "eolien": 8747,
+    "solaire": 0,
+    "hydraulique": 7946,
+    "pompage": -517,
+    "bioenergies": 1126,
+    "ech_physiques": -17496,
+    "taux_co2": 12,
+    "ech_comm_angleterre": -3528,
+    "ech_comm_espagne": -2097,
+    "ech_comm_italie": -2917,
+    "ech_comm_suisse": -2990,
+    "ech_comm_allemagne_belgique": -5202,
+    "fioul_tac": 1,
+    "fioul_cogen": 35,
+    "fioul_autres": 0,
+    "gaz_tac": 0,
+    "gaz_cogen": 194,
+    "gaz_ccg": 152,
+    "gaz_autres": 0,
+    "hydraulique_fil_eau_eclusee": 5017,
+    "hydraulique_lacs": 1943,
+    "hydraulique_step_turbinage": 986,
+    "bioenergies_dechets": 408,
+    "bioenergies_biomasse": 412,
+    "bioenergies_biogaz": 307
+  }
 }
