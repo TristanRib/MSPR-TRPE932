@@ -1,8 +1,13 @@
 from fastapi import FastAPI
+from pydantic import BaseModel
 import numpy as np
 import os
 
 from utils import load_latest_model
+
+
+class PredictRequest(BaseModel):
+    features: list[float]
 
 app = FastAPI()
 
@@ -15,8 +20,8 @@ def health():
     return {"status": "ok", "model_loaded": model_name}
 
 @app.post("/predict")
-def predict(data: dict):
-    features = np.array(data["features"]).reshape(1, -1)
+def predict(data: PredictRequest):
+    features = np.array(data.features).reshape(1, -1)
     prediction = model.predict(features)
     return {
         "prediction": float(prediction[0]),
