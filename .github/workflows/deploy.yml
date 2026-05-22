@@ -40,6 +40,7 @@ jobs:
           gcloud run deploy api \
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest \
             --region=${{ vars.REGION }} \
+            --update-env-vars RAW_DIR=/app/gcs/raw \
             --quiet
 
       - name: Update ETL Job

@@ -7,7 +7,7 @@ import yaml
 
 ROOT     = Path(__file__).parent.parent
 RAW_DIR  = Path(os.getenv("RAW_DIR", str(ROOT / "data")))
-RAW_CSV  = RAW_DIR / "eco2mix-national-cons-def.csv"
+RAW_CSV  = RAW_DIR / "raw_data.csv"
 CARD_OUT = RAW_DIR / "raw_data.yaml"
 
 DESCRIPTIONS = {

@@ -1,17 +1,17 @@
 import logging
 import os
 import traceback
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
 
 import joblib
+import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 
 from utils import load_latest_model
-from transform import prepare_features
+from transform import prepare_features, RAW_DIR, _DATETIME_COL
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
@@ -30,10 +30,6 @@ except Exception as e:
     raise
 
 
-class PredictRequest(BaseModel):
-    data: dict[str, Any]
-
-
 @app.exception_handler(Exception)
 async def global_exception_handler(_request, exc):
     log.error(f"Erreur non gérée : {exc}\n{traceback.format_exc()}")
@@ -45,29 +41,42 @@ def health():
     return {"status": "ok", "model_loaded": model_name}
 
 
-@app.post("/predict")
-def predict(request: PredictRequest):
+@app.get("/predict")
+def predict():
     try:
-        df = pd.DataFrame([request.data])
-        log.info(f"Requête reçue : {list(request.data.keys())}")
+        # Prochain slot de 30 min à partir de maintenant
+        now = datetime.now(timezone.utc)
+        remainder = now.minute % 30
+        delta = timedelta(minutes=(30 - remainder) % 30)
+        start = (now + delta).replace(second=0, microsecond=0)
+        slots = pd.date_range(start, periods=48, freq="30min")
 
-        df = prepare_features(df)
-        log.info(f"Features après transformation : {list(df.columns)}")
+        # Lecture de raw_data pour les lags (conso_h24 et conso_h168)
+        raw = pd.read_csv(RAW_DIR / "raw_data.csv", sep=";", encoding="utf-8-sig", low_memory=False)
+        raw[_DATETIME_COL] = pd.to_datetime(raw["Date et Heure"], utc=True)
+        conso = pd.to_numeric(
+            raw.set_index(_DATETIME_COL)["Consommation (MW)"].replace("ND", np.nan),
+            errors="coerce",
+        )
+        conso = conso[~conso.index.duplicated(keep="first")]
 
-        missing = [c for c in feature_cols if c not in df.columns]
-        if missing:
-            log.warning(f"{len(missing)} features manquantes (seront imputées) : {missing[:5]}...")
+        # Features temporelles pour les 48 slots
+        df_slots = pd.DataFrame({_DATETIME_COL: slots})
+        df_slots = prepare_features(df_slots)
 
-        X = df.reindex(columns=feature_cols).values.astype(float)
+        df_slots["conso_h24"]  = conso.reindex(slots - pd.Timedelta(hours=24)).values
+        df_slots["conso_h168"] = conso.reindex(slots - pd.Timedelta(hours=168)).values
+
+        X = df_slots.reindex(columns=feature_cols).values.astype(float)
         X = imputer.transform(X)
-        prediction = model.predict(X)
+        preds = model.predict(X)
 
-        result = float(prediction[0])
-        log.info(f"Prédiction : {result:.1f} MW")
-        return {"prediction": result, "model_used": model_name}
+        log.info(f"Prédiction de {len(slots)} slots depuis {start.isoformat()}")
+        return [
+            {"datetime": s.isoformat(), "prediction_mw": round(float(p), 1)}
+            for s, p in zip(slots, preds)
+        ]
 
-    except HTTPException:
-        raise
     except Exception as e:
         log.error(f"Erreur predict : {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))

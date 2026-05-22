@@ -2,8 +2,6 @@ import os
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).parent.parent
-
 import joblib
 import numpy as np
 import pandas as pd
@@ -11,13 +9,14 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.kernel_approximation import RBFSampler
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeRegressor
 from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
+
+ROOT = Path(__file__).parent.parent
 
 PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", str(ROOT / "data")))
 MODELS_DIR    = Path(os.getenv("MODELS_DIR",    str(ROOT / "outputs")))
@@ -27,7 +26,8 @@ def load_data():
     df = pd.read_csv(PROCESSED_DIR / "transformed_data.csv")
     X = df.drop(columns=["Consommation"])
     y = df["Consommation"]
-    return train_test_split(X, y, test_size=0.2, random_state=42)
+    split = int(len(df) * 0.8)
+    return X.iloc[:split], X.iloc[split:], y.iloc[:split], y.iloc[split:]
 
 
 def build_models() -> dict:

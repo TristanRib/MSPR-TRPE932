@@ -12,31 +12,29 @@ RAW_DIR       = Path(os.getenv("RAW_DIR",       str(ROOT / "data")))
 PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", str(ROOT / "data")))
 MODELS_DIR    = Path(os.getenv("MODELS_DIR",    str(ROOT / "outputs")))
 
+_DATETIME_COL = "date_heure"
+_CONSO_COL    = "Consommation"
+
 
 def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
-    # Supprimer les unités entre parenthèses : "Consommation (MW)" → "Consommation"
+    # 1. Normalise les noms : strip unités "(MW)" et unifie "Date et Heure" → "date_heure"
     df.columns = [re.sub(r"\s*\(.*?\)\s*$", "", col).strip() for col in df.columns]
+    df = df.rename(columns={"Date et Heure": _DATETIME_COL})
 
-    df = df.drop(columns=[c for c in ["Périmètre", "Nature"] if c in df.columns])
+    # 2. Encodages temporels cycliques
+    dt = pd.to_datetime(df[_DATETIME_COL], utc=True)
+    df["hour_sin"]  = np.sin(2 * np.pi * dt.dt.hour      / 24)
+    df["hour_cos"]  = np.cos(2 * np.pi * dt.dt.hour      / 24)
+    df["day_sin"]   = np.sin(2 * np.pi * dt.dt.dayofweek / 7)
+    df["day_cos"]   = np.cos(2 * np.pi * dt.dt.dayofweek / 7)
+    df["month_sin"] = np.sin(2 * np.pi * dt.dt.month     / 12)
+    df["month_cos"] = np.cos(2 * np.pi * dt.dt.month     / 12)
 
-    # Supporte "Date et Heure" (CSV) ou "date_heure" (API ODRE)
-    if "Date et Heure" in df.columns:
-        df["datetime"] = pd.to_datetime(df["Date et Heure"], utc=True)
-    elif "date_heure" in df.columns:
-        df["datetime"] = pd.to_datetime(df["date_heure"])
+    df = df.drop(columns=[_DATETIME_COL])
 
-    df["hour_sin"]  = np.sin(2 * np.pi * df["datetime"].dt.hour / 24)
-    df["hour_cos"]  = np.cos(2 * np.pi * df["datetime"].dt.hour / 24)
-    df["day_sin"]   = np.sin(2 * np.pi * df["datetime"].dt.dayofweek / 7)
-    df["day_cos"]   = np.cos(2 * np.pi * df["datetime"].dt.dayofweek / 7)
-    df["month_sin"] = np.sin(2 * np.pi * df["datetime"].dt.month / 12)
-    df["month_cos"] = np.cos(2 * np.pi * df["datetime"].dt.month / 12)
-
-    drop_cols = ["datetime", "Date", "Heure", "Date et Heure", "date_heure"]
-    df = df.drop(columns=[c for c in drop_cols if c in df.columns])
-
+    # 3. Convertit les colonnes object restantes en numérique ("ND" → NaN)
     for col in df.select_dtypes(include="object").columns:
         df[col] = pd.to_numeric(df[col].replace("ND", np.nan), errors="coerce")
 
@@ -45,21 +43,35 @@ def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     df = pd.read_csv(
-        RAW_DIR / "eco2mix-national-cons-def.csv",
+        RAW_DIR / "raw_data.csv",
         sep=";",
         encoding="utf-8-sig",
         index_col=False,
         low_memory=False,
     )
-    df = df.sort_values(by=["Date", "Heure"], ascending=True).reset_index(drop=True)
+    df = df.sort_values(by=["Date et Heure"], ascending=True).reset_index(drop=True)
 
-    df = prepare_features(df)
+    dt = pd.to_datetime(df["Date et Heure"], utc=True)
+
+    df = prepare_features(df)  # "Consommation (MW)" → "Consommation", drop date_heure
+    df.index = dt
+
+    conso = pd.to_numeric(df[_CONSO_COL].replace("ND", np.nan), errors="coerce")
+    conso = conso[~conso.index.duplicated(keep="first")]
+    df["conso_h24"]  = conso.reindex(dt - pd.Timedelta(hours=24)).values
+    df["conso_h168"] = conso.reindex(dt - pd.Timedelta(hours=168)).values
+
+    df = df.dropna(subset=["conso_h24", "conso_h168", _CONSO_COL])
+
+    feature_cols = [
+        "hour_sin", "hour_cos",
+        "day_sin",  "day_cos",
+        "month_sin", "month_cos",
+        "conso_h24", "conso_h168",
+    ]
 
     imputer = SimpleImputer(strategy="median")
-    feature_cols = [c for c in df.columns if c != "Consommation"]
-
     df[feature_cols] = imputer.fit_transform(df[feature_cols])
-    df = df.dropna(subset=["Consommation"])
 
     MODELS_DIR.mkdir(exist_ok=True)
     joblib.dump(imputer,      MODELS_DIR / "imputer.pkl")
@@ -67,7 +79,9 @@ def main():
     print(f"imputer.pkl sauvegardé ({len(feature_cols)} features)")
 
     PROCESSED_DIR.mkdir(exist_ok=True)
-    df.to_csv(PROCESSED_DIR / "transformed_data.csv", index=False)
+    df[feature_cols + [_CONSO_COL]].to_csv(
+        PROCESSED_DIR / "transformed_data.csv", index=False
+    )
     print(f"transformed_data.csv sauvegardé ({len(df)} lignes)")
 
 
