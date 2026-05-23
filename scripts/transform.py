@@ -2,6 +2,7 @@ import logging
 import os
 import re
 from pathlib import Path
+from typing import cast
 
 import holidays
 import joblib
@@ -27,17 +28,29 @@ def add_lags(
     conso_hist: pd.Series | None = None,
     temp_hist: pd.Series | None = None,
 ) -> pd.DataFrame:
-    """Ajoute conso_h24, conso_h48, conso_h168, temp_h24, temp_h48.
+    """Ajoute lags conso/temp et moyennes glissantes.
     En mode entraînement (historiques None) : lookup dans df lui-même (index UTC).
     En mode API (historiques fournis) : lookup dans les séries historiques indexées UTC."""
     df = df.copy()
+    idx   = cast(pd.DatetimeIndex, df.index)
     conso = conso_hist if conso_hist is not None else df[_CONSO_COL]
     temp  = temp_hist  if temp_hist  is not None else df["temperature_2m"]
-    df["conso_h24"]  = conso.reindex(df.index - pd.Timedelta(hours=24)).values
-    df["conso_h48"]  = conso.reindex(df.index - pd.Timedelta(hours=48)).values
-    df["conso_h168"] = conso.reindex(df.index - pd.Timedelta(hours=168)).values
-    df["temp_h24"]   = temp.reindex(df.index - pd.Timedelta(hours=24)).values
-    df["temp_h48"]   = temp.reindex(df.index - pd.Timedelta(hours=48)).values
+
+    df["conso_h24"]  = conso.reindex(idx - pd.Timedelta(hours=24)).to_numpy()
+    df["conso_h48"]  = conso.reindex(idx - pd.Timedelta(hours=48)).to_numpy()
+    df["conso_h168"] = conso.reindex(idx - pd.Timedelta(hours=168)).to_numpy()
+
+    vals_7d = np.stack([conso.reindex(idx - pd.Timedelta(hours=h)).to_numpy()
+                        for h in range(24, 169, 24)], axis=1)
+    df["conso_mean_7d"] = np.nanmean(vals_7d, axis=1)
+
+    vals_12w = np.stack([conso.reindex(idx - pd.Timedelta(hours=168 * w)).to_numpy()
+                         for w in range(1, 13)], axis=1)
+    df["conso_mean_12w"] = np.nanmean(vals_12w, axis=1)
+
+    df["temp_h24"]  = temp.reindex(idx - pd.Timedelta(hours=24)).to_numpy()
+    df["temp_h48"]  = temp.reindex(idx - pd.Timedelta(hours=48)).to_numpy()
+    df["temp_h168"] = temp.reindex(idx - pd.Timedelta(hours=168)).to_numpy()
     return df
 
 
@@ -52,23 +65,27 @@ def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop(columns=[_DATETIME_COL])
 
     hour_frac = dt_par.dt.hour + dt_par.dt.minute / 60
+    doy       = dt_par.dt.dayofyear
     df["hour_sin"]  = np.sin(2 * np.pi * hour_frac            / 24)
     df["hour_cos"]  = np.cos(2 * np.pi * hour_frac            / 24)
     df["day_sin"]   = np.sin(2 * np.pi * dt_par.dt.dayofweek  / 7)
     df["day_cos"]   = np.cos(2 * np.pi * dt_par.dt.dayofweek  / 7)
     df["month_sin"] = np.sin(2 * np.pi * dt_par.dt.month      / 12)
     df["month_cos"] = np.cos(2 * np.pi * dt_par.dt.month      / 12)
+    df["doy_sin"]   = np.sin(2 * np.pi * doy                  / 365)
+    df["doy_cos"]   = np.cos(2 * np.pi * doy                  / 365)
 
     df.index = dt
 
     fr_holidays = holidays.France()
-    df["is_holiday"] = dt_par.dt.date.map(lambda d: int(d in fr_holidays)).values
+    df["is_holiday"]           = [int(ts.date() in fr_holidays)                          for ts in dt_par]
+    df["is_day_after_holiday"] = [int((ts - pd.Timedelta(days=1)).date() in fr_holidays) for ts in dt_par]
 
     for col in df.select_dtypes(include="object").columns:
         df[col] = pd.to_numeric(df[col].replace("ND", np.nan), errors="coerce")
 
-    df["heating_degrees"] = (17 - df["temperature_2m"]).clip(lower=0)
-    df["cooling_degrees"] = (df["temperature_2m"] - 21).clip(lower=0)
+    df["heating_apparent"] = (17 - df["apparent_temperature"]).clip(lower=0)
+    df["cooling_apparent"] = (df["apparent_temperature"] - 21).clip(lower=0)
 
     return df
 
@@ -91,16 +108,20 @@ def main():
         "hour_sin", "hour_cos",
         "day_sin",  "day_cos",
         "month_sin", "month_cos",
+        "doy_sin", "doy_cos",
         "temperature_2m", "apparent_temperature",
         "precipitation", "cloud_cover",
-        "heating_degrees", "cooling_degrees",
-        "is_holiday", "conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48",
+        "heating_apparent", "cooling_apparent",
+        "is_holiday", "is_day_after_holiday",
+        "conso_h24", "conso_h48", "conso_h168",
+        "conso_mean_7d", "conso_mean_12w",
+        "temp_h24", "temp_h48", "temp_h168",
     ]
 
-    complete = df[["conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48"]].notna().all(axis=1)
+    complete = df[["conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48", "temp_h168"]].notna().all(axis=1)
     imputer  = KNNImputer(n_neighbors=5)
     imputer.fit(df.loc[complete, feature_cols].to_numpy())
-    df[feature_cols] = imputer.transform(df[feature_cols].to_numpy())
+    df[feature_cols] = cast(np.ndarray, imputer.transform(df[feature_cols].to_numpy()))
 
     MODELS_DIR.mkdir(exist_ok=True)
     joblib.dump(imputer, MODELS_DIR / "imputer.pkl", compress=3)
