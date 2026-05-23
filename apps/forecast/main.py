@@ -1,8 +1,12 @@
+import logging
 import os
 from datetime import datetime, timezone
 
 import requests
 from google.cloud import bigquery
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+log = logging.getLogger(__name__)
 
 API_URL = os.environ["API_URL"]
 BQ_TABLE = os.environ["BQ_TABLE"]
@@ -27,7 +31,7 @@ def main():
     )
     client.load_table_from_json(rows, BQ_TABLE, job_config=job_config).result()
 
-    print(f"OK — {len(rows)} prédictions insérées ({run_at})")
+    log.info(f"{len(rows)} prédictions insérées ({run_at})")
 
 
 if __name__ == "__main__":

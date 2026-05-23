@@ -1,7 +1,11 @@
+import logging
 import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+log = logging.getLogger(__name__)
 
 import joblib
 import numpy as np
@@ -89,7 +93,7 @@ def _load_prev_best_from_bq() -> dict | None:
         rows = list(client.query(query).result())
         return dict(rows[0]) if rows else None
     except Exception as e:
-        print(f"WARN : lecture BQ pour check_quality échouée : {e}")
+        log.warning(f"Lecture BQ pour check_quality échouée : {e}")
         return None
 
 
@@ -113,7 +117,7 @@ def check_quality(metrics: dict):
 def save_metrics_to_bq(results: list[dict], best_name: str):
     bq_table = os.getenv("BQ_METRICS_TABLE", "")
     if not bq_table:
-        print("WARN : BQ_METRICS_TABLE non défini, push BigQuery ignoré")
+        log.warning("BQ_METRICS_TABLE non défini, push BigQuery ignoré")
         return
     try:
         from google.cloud import bigquery
@@ -134,11 +138,11 @@ def save_metrics_to_bq(results: list[dict], best_name: str):
         client = bigquery.Client()
         errors = client.insert_rows_json(bq_table, rows)
         if errors:
-            print(f"WARN : BigQuery insert errors : {errors}")
+            log.warning(f"BigQuery insert errors : {errors}")
         else:
-            print(f"Métriques pushées vers BigQuery ({len(rows)} lignes)")
+            log.info(f"Métriques pushées vers BigQuery ({len(rows)} lignes)")
     except Exception as e:
-        print(f"WARN : push BigQuery échoué : {e}")
+        log.warning(f"Push BigQuery échoué : {e}")
 
 
 def save_model(model, name: str):
@@ -149,7 +153,7 @@ def save_model(model, name: str):
     next_num = max(numbers) + 1 if numbers else 1
     path = MODELS_DIR / f"{base}_{next_num:02d}.pkl"
     joblib.dump(model, path, compress=3)
-    print(f"Modèle sauvegardé : {path.name}")
+    log.info(f"Modèle sauvegardé : {path.name}")
 
 
 def main():
@@ -158,13 +162,13 @@ def main():
     results = []
 
     for name, model in models.items():
-        print(f"Training {name}...")
+        log.info(f"Training {name}...")
         model.fit(X_train, y_train)
         metrics = compute_metrics(y_test, model.predict(X_test))
         results.append({"Model": name, **metrics})
 
     results_df = pd.DataFrame(results).sort_values("R2", ascending=False)
-    print("\n" + results_df.to_string(index=False))
+    log.info("\n" + results_df.to_string(index=False))
 
     best_row     = results_df.iloc[0]
     best_name    = best_row["Model"]
@@ -174,7 +178,7 @@ def main():
 
     save_model(models[best_name], best_name)
     save_metrics_to_bq(results, best_name)
-    print(f"Qualité validée — R²={best_metrics['R2']:.4f}, MAPE={best_metrics['MAPE']:.4f}")
+    log.info(f"Qualité validée — R²={best_metrics['R2']:.4f}, MAPE={best_metrics['MAPE']:.4f}")
 
 
 if __name__ == "__main__":

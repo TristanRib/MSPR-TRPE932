@@ -1,9 +1,13 @@
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 import yaml
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+log = logging.getLogger(__name__)
 
 ROOT     = Path(__file__).parent.parent
 RAW_DIR  = Path(os.getenv("RAW_DIR", str(ROOT / "data")))
@@ -136,7 +140,7 @@ def generate(csv_path: Path = RAW_CSV, out_path: Path = CARD_OUT):
     with open(out_path, "w", encoding="utf-8") as f:
         yaml.dump(card, f, allow_unicode=True, sort_keys=False)
 
-    print(f"Datacard mise à jour : {n} lignes, période {period}")
+    log.info(f"Datacard mise à jour : {n} lignes, période {period}")
 
 
 if __name__ == "__main__":

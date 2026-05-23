@@ -1,7 +1,10 @@
+import logging
 import os
 import re
 
 import joblib
+
+log = logging.getLogger(__name__)
 
 def load_latest_model(models_dir: str = "../outputs"):
     """Charge automatiquement le modèle avec le numéro de version le plus élevé."""
@@ -20,5 +23,5 @@ def load_latest_model(models_dir: str = "../outputs"):
     latest_file = max(model_files, key=lambda x: x[1])
     latest_path = os.path.join(models_dir, latest_file[0])
 
-    print(f"Modèle chargé : {latest_file[0]}")
+    log.info(f"Modèle chargé : {latest_file[0]}")
     return joblib.load(latest_path), latest_file[0]

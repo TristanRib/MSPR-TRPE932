@@ -73,7 +73,7 @@ def fetch_weather_forecast() -> pd.DataFrame:
         "hourly":        ",".join(_WEATHER_COLS),
         "forecast_days": 2,
     }
-    resp = requests.get(_OPEN_METEO_FORECAST_URL, params=params, timeout=30)
+    resp = requests.get(_OPEN_METEO_FORECAST_URL, params=params, timeout=60)
     resp.raise_for_status()
     df = pd.DataFrame(resp.json()["hourly"])
     df["time"] = (
@@ -103,7 +103,7 @@ def fetch_energy(target_date: date) -> pd.DataFrame:
         "delimiter": ";",
         "timezone":  "Europe/Paris",
     }
-    resp = requests.get(url, params=params, timeout=120)
+    resp = requests.get(url, params=params, timeout=60)
     resp.raise_for_status()
 
     df = pd.read_csv(StringIO(resp.content.decode("utf-8-sig")), sep=";")
@@ -130,7 +130,7 @@ def _fetch_energy_range(since: date, until: date) -> pd.DataFrame | None:
         "timezone":  "Europe/Paris",
     }
     try:
-        resp = requests.get(url, params=params, timeout=300)
+        resp = requests.get(url, params=params, timeout=120)
         resp.raise_for_status()
         df = pd.read_csv(StringIO(resp.content.decode("utf-8-sig")), sep=";")
         df = df[(df["date"] >= since.isoformat()) & (df["date"] < until.isoformat())]

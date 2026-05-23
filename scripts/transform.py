@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from pathlib import Path
@@ -7,6 +8,9 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+log = logging.getLogger(__name__)
 
 ROOT          = Path(__file__).parent.parent
 RAW_DIR       = Path(os.getenv("RAW_DIR",       str(ROOT / "data")))
@@ -99,13 +103,13 @@ def main():
     MODELS_DIR.mkdir(exist_ok=True)
     joblib.dump(imputer,      MODELS_DIR / "imputer.pkl")
     joblib.dump(feature_cols, MODELS_DIR / "feature_cols.pkl")
-    print(f"imputer.pkl sauvegardé ({len(feature_cols)} features)")
+    log.info(f"imputer.pkl sauvegardé ({len(feature_cols)} features)")
 
     PROCESSED_DIR.mkdir(exist_ok=True)
     df[feature_cols + [_CONSO_COL]].to_csv(
         PROCESSED_DIR / "transformed_data.csv", index=False
     )
-    print(f"transformed_data.csv sauvegardé ({len(df)} lignes)")
+    log.info(f"transformed_data.csv sauvegardé ({len(df)} lignes)")
 
 
 if __name__ == "__main__":
