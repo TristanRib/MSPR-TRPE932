@@ -15,7 +15,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
-from utils import load_latest_model, list_models
+from utils import load_latest_model, load_quantile_models, list_models
 from transform import prepare_features, add_lags, _WEATHER_COLS
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
@@ -46,12 +46,14 @@ def _get_artifacts() -> dict:
     with _artifacts_lock:
         if _artifacts is None or _artifacts["model_name"] != latest_name:
             model, model_name = load_latest_model(str(MODELS_DIR))
+            p10_model, p90_model = load_quantile_models(str(MODELS_DIR))
             _artifacts = {
-                "model":            model,
-                "model_name":       model_name,
-                "imputer":          joblib.load(MODELS_DIR / "imputer.pkl"),
-                "feature_cols":     joblib.load(MODELS_DIR / "feature_cols.pkl"),
-                "isolation_forest": joblib.load(MODELS_DIR / "isolation_forest.pkl"),  # dict: model, score_min, score_max
+                "model":        model,
+                "model_name":   model_name,
+                "p10_model":    p10_model,
+                "p90_model":    p90_model,
+                "imputer":      joblib.load(MODELS_DIR / "imputer.pkl"),
+                "feature_cols": joblib.load(MODELS_DIR / "feature_cols.pkl"),
             }
             log.info(f"Artefacts rechargés : {model_name}")
     return _artifacts
@@ -136,26 +138,19 @@ def predict():
 
         X = df.reindex(columns=a["feature_cols"]).values.astype(float)
         X = a["imputer"].transform(X)
-        preds = a["model"].predict(X)
-
-        import numpy as np
-        iso_artifact  = a["isolation_forest"]
-        if_input      = np.column_stack([X, preds])
-        raw_scores    = iso_artifact["model"].decision_function(if_input)
-        score_min     = iso_artifact["score_min"]
-        score_max     = iso_artifact["score_max"]
-        confidence_pct = np.clip(
-            (raw_scores - score_min) / (score_max - score_min) * 100, 0, 100
-        )
+        preds     = a["model"].predict(X)
+        preds_p10 = a["p10_model"].predict(X)
+        preds_p90 = a["p90_model"].predict(X)
 
         log.info(f"Prédiction de {len(slots)} slots depuis {start.isoformat()}")
         return [
             {
-                "datetime":         s.isoformat(),
-                "prediction_mw":    round(float(p), 1),
-                "confidence_score": round(float(c), 1),
+                "datetime":       s.isoformat(),
+                "prediction_mw":  round(float(p),   1),
+                "prediction_p10": round(float(p10), 1),
+                "prediction_p90": round(float(p90), 1),
             }
-            for s, p, c in zip(slots, preds, confidence_pct)
+            for s, p, p10, p90 in zip(slots, preds, preds_p10, preds_p90)
         ]
 
     except Exception as e:

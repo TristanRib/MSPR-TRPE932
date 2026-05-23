@@ -18,17 +18,18 @@ def main():
     run_at = datetime.now(timezone.utc).isoformat()
     rows = [
         {
-            "run_at":           run_at,
-            "predicted_at":     p["datetime"],
-            "prediction_mw":    p["prediction_mw"],
-            "confidence_score": p["confidence_score"],
+            "run_at":         run_at,
+            "predicted_at":   p["datetime"],
+            "prediction_mw":  p["prediction_mw"],
+            "prediction_p10": p["prediction_p10"],
+            "prediction_p90": p["prediction_p90"],
         }
         for p in preds
     ]
 
-    low_confidence = [r for r in rows if r["confidence_score"] < 40]
-    if low_confidence:
-        log.warning(f"{len(low_confidence)}/{len(rows)} slots à faible confiance (score < 0)")
+    wide = [r for r in rows if r["prediction_p90"] - r["prediction_p10"] > 5000]
+    if wide:
+        log.warning(f"{len(wide)}/{len(rows)} slots avec intervalle p10-p90 > 5000 MW")
 
     client = bigquery.Client()
     job_config = bigquery.LoadJobConfig(

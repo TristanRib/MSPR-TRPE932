@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -10,16 +9,8 @@ log = logging.getLogger(__name__)
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.kernel_approximation import RBFSampler
-from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, r2_score
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.tree import DecisionTreeRegressor
 from xgboost import XGBRegressor
-from lightgbm import LGBMRegressor
 
 ROOT = Path(__file__).parent.parent
 
@@ -30,6 +21,13 @@ RUN_NOISE_R2       = 0.005
 RUN_NOISE_MAPE     = 0.005
 RUN_NOISE_ACCURACY = 0.01
 
+MODEL_NAME = "XGBoost"
+MODEL_PARAMS = dict(
+    n_estimators=500, learning_rate=0.05, max_depth=6,
+    subsample=0.8, colsample_bytree=0.7, min_child_weight=5,
+    random_state=42, n_jobs=-1,
+)
+
 
 def load_data():
     df = pd.read_csv(PROCESSED_DIR / "transformed_data.csv")
@@ -37,34 +35,6 @@ def load_data():
     y = df["Consommation"]
     split = int(len(df) * 0.8)
     return X.iloc[:split], X.iloc[split:], y.iloc[:split], y.iloc[split:]
-
-
-def build_models() -> dict:
-    return {
-        "RBF": Pipeline([
-            ("scaler", StandardScaler()),
-            ("rbf", RBFSampler(gamma=0.1, n_components=500)),
-            ("ridge", Ridge()),
-        ]),
-        "Random Forest": RandomForestRegressor(
-            n_estimators=200, max_depth=None, min_samples_split=5,
-            min_samples_leaf=1, max_features="sqrt", random_state=42, n_jobs=-1,
-        ),
-        "KNN": Pipeline([
-            ("scaler", StandardScaler()),
-            ("model", KNeighborsRegressor(n_neighbors=50, weights="distance", metric="manhattan", n_jobs=-1)),
-        ]),
-        "Decision Tree": DecisionTreeRegressor(random_state=42),
-        "XGBoost": XGBRegressor(
-            n_estimators=500, learning_rate=0.05, max_depth=6,
-            subsample=0.8, colsample_bytree=0.7, min_child_weight=5,
-            random_state=42, n_jobs=-1,
-        ),
-        "LightGBM": LGBMRegressor(
-            n_estimators=300, learning_rate=0.05, max_depth=-1, num_leaves=31,
-            subsample=0.8, colsample_bytree=0.8, random_state=42, n_jobs=-1,
-        ),
-    }
 
 
 def compute_metrics(y_true, y_pred) -> dict:
@@ -114,7 +84,7 @@ def check_quality(metrics: dict):
         raise RuntimeError("Contrôle qualité échoué :\n" + "\n".join(f"  - {e}" for e in errors))
 
 
-def save_metrics_to_bq(results: list[dict], best_name: str):
+def save_metrics_to_bq(metrics: dict):
     bq_table = os.getenv("BQ_METRICS_TABLE", "")
     if not bq_table:
         log.warning("BQ_METRICS_TABLE non défini, push BigQuery ignoré")
@@ -122,61 +92,49 @@ def save_metrics_to_bq(results: list[dict], best_name: str):
     try:
         from google.cloud import bigquery
 
-        run_at = datetime.now(timezone.utc).isoformat()
-        rows = [
-            {
-                "run_at":        run_at,
-                "best_model":    best_name,
-                "model_name":    r["Model"],
-                "r2":            r["R2"],
-                "rmse":          r["RMSE"],
-                "mape":          r["MAPE"],
-                "accuracy_5pct": r["Accuracy (±5%)"],
-            }
-            for r in results
-        ]
+        rows = [{
+            "run_at":        datetime.now(timezone.utc).isoformat(),
+            "best_model":    MODEL_NAME,
+            "model_name":    MODEL_NAME,
+            "r2":            metrics["R2"],
+            "rmse":          metrics["RMSE"],
+            "mape":          metrics["MAPE"],
+            "accuracy_5pct": metrics["Accuracy (±5%)"],
+        }]
         client = bigquery.Client()
         errors = client.insert_rows_json(bq_table, rows)
         if errors:
             log.warning(f"BigQuery insert errors : {errors}")
         else:
-            log.info(f"Métriques pushées vers BigQuery ({len(rows)} lignes)")
+            log.info(f"Métriques pushées vers BigQuery")
     except Exception as e:
         log.warning(f"Push BigQuery échoué : {e}")
 
 
-def save_model(model, name: str):
-    MODELS_DIR.mkdir(exist_ok=True)
-    model_type = name.lower().replace(" ", "_")
-    date_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    path = MODELS_DIR / f"model_{model_type}_{date_str}.pkl"
-    joblib.dump(model, path, compress=3)
-    log.info(f"Modèle sauvegardé : {path.name}")
-
-
 def main():
     X_train, X_test, y_train, y_test = load_data()
-    models = build_models()
-    results = []
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    MODELS_DIR.mkdir(exist_ok=True)
 
-    for name, model in models.items():
-        log.info(f"Training {name}...")
-        model.fit(X_train, y_train)
-        metrics = compute_metrics(y_test, model.predict(X_test))
-        results.append({"Model": name, **metrics})
+    log.info(f"Training {MODEL_NAME}...")
+    model = XGBRegressor(**MODEL_PARAMS)
+    model.fit(X_train, y_train)
+    metrics = compute_metrics(y_test, model.predict(X_test))
+    log.info(f"R²={metrics['R2']:.4f}  RMSE={metrics['RMSE']:.1f}  MAPE={metrics['MAPE']:.4f}  Acc±5%={metrics['Accuracy (±5%)']:.4f}")
 
-    results_df = pd.DataFrame(results).sort_values("R2", ascending=False)
-    log.info("\n" + results_df.to_string(index=False))
+    # check_quality(metrics)
 
-    best_row     = results_df.iloc[0]
-    best_name    = best_row["Model"]
-    best_metrics = best_row.drop("Model").to_dict()
+    joblib.dump(model, MODELS_DIR / f"model_xgboost_{date_str}.pkl", compress=3)
+    log.info(f"model_xgboost_{date_str}.pkl sauvegardé")
 
-    # check_quality(best_metrics)
+    for alpha, suffix in [(0.1, "p10"), (0.9, "p90")]:
+        log.info(f"Training quantile {suffix}...")
+        m = XGBRegressor(objective="reg:quantileerror", quantile_alpha=alpha, **MODEL_PARAMS)
+        m.fit(X_train, y_train)
+        joblib.dump(m, MODELS_DIR / f"model_xgboost_{suffix}_{date_str}.pkl", compress=3)
+        log.info(f"model_xgboost_{suffix}_{date_str}.pkl sauvegardé")
 
-    save_model(models[best_name], best_name)
-    save_metrics_to_bq(results, best_name)
-    log.info(f"Qualité validée — R²={best_metrics['R2']:.4f}, MAPE={best_metrics['MAPE']:.4f}")
+    save_metrics_to_bq(metrics)
 
 
 if __name__ == "__main__":

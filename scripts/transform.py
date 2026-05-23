@@ -7,7 +7,6 @@ import holidays
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import IsolationForest
 from sklearn.impute import SimpleImputer
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
@@ -101,20 +100,10 @@ def main():
     imputer = SimpleImputer(strategy="median")
     df[feature_cols] = imputer.fit_transform(df[feature_cols])
 
-    iso_data = df[feature_cols + [_CONSO_COL]].values
-    iso = IsolationForest(n_estimators=100, contamination="auto", random_state=42)
-    iso.fit(iso_data)
-    train_scores = iso.decision_function(iso_data)
-
     MODELS_DIR.mkdir(exist_ok=True)
     joblib.dump(imputer,      MODELS_DIR / "imputer.pkl")
     joblib.dump(feature_cols, MODELS_DIR / "feature_cols.pkl")
-    joblib.dump({
-        "model":     iso,
-        "score_min": float(train_scores.min()),
-        "score_max": float(train_scores.max()),
-    }, MODELS_DIR / "isolation_forest.pkl")
-    log.info(f"imputer.pkl + isolation_forest.pkl sauvegardés ({len(feature_cols)} features)")
+    log.info(f"imputer.pkl sauvegardé ({len(feature_cols)} features)")
 
     PROCESSED_DIR.mkdir(exist_ok=True)
     df[feature_cols + [_CONSO_COL]].to_csv(
