@@ -207,7 +207,7 @@ def upsert_raw(new_df: pd.DataFrame):
     else:
         new_df = new_df.drop(columns=["_dt_utc"])
 
-    combined = pd.concat([existing, new_df], ignore_index=True)
+    combined = pd.concat([new_df, existing], ignore_index=True)
     combined["_dt_utc"] = pd.to_datetime(combined["Date et Heure"], utc=True)
     combined = combined.drop_duplicates(subset=["_dt_utc"]).drop(columns=["_dt_utc"])
     combined = combined.sort_values(by=["Date", "Heure"]).reset_index(drop=True)

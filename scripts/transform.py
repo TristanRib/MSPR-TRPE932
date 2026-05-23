@@ -7,7 +7,7 @@ import holidays
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.impute import SimpleImputer
+from sklearn.impute import KNNImputer
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ def main():
     df = prepare_features(df)
     df = df[~df.index.duplicated(keep="first")]
     df = add_lags(df)
-    df = df.dropna(subset=[_CONSO_COL, "conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48"])
+    df = df.dropna(subset=[_CONSO_COL])
 
     feature_cols = [
         "hour_sin", "hour_cos",
@@ -97,18 +97,18 @@ def main():
         "is_holiday", "conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48",
     ]
 
-    imputer = SimpleImputer(strategy="median")
-    df[feature_cols] = imputer.fit_transform(df[feature_cols])
+    complete = df[["conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48"]].notna().all(axis=1)
+    imputer  = KNNImputer(n_neighbors=5)
+    imputer.fit(df.loc[complete, feature_cols].to_numpy())
+    df[feature_cols] = imputer.transform(df[feature_cols].to_numpy())
 
     MODELS_DIR.mkdir(exist_ok=True)
-    joblib.dump(imputer,      MODELS_DIR / "imputer.pkl")
+    joblib.dump(imputer, MODELS_DIR / "imputer.pkl", compress=3)
     joblib.dump(feature_cols, MODELS_DIR / "feature_cols.pkl")
     log.info(f"imputer.pkl sauvegardé ({len(feature_cols)} features)")
 
     PROCESSED_DIR.mkdir(exist_ok=True)
-    df[feature_cols + [_CONSO_COL]].to_csv(
-        PROCESSED_DIR / "transformed_data.csv", index=False
-    )
+    df[feature_cols + [_CONSO_COL]].to_csv(PROCESSED_DIR / "transformed_data.csv", index=False)
     log.info(f"transformed_data.csv sauvegardé ({len(df)} lignes)")
 
 
