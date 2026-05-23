@@ -137,7 +137,7 @@ def _get_weather() -> pd.DataFrame:
                 .dt.tz_convert("UTC")
             )
             df = df.set_index("time")
-            df = df.resample("15min").interpolate("linear")
+            df = df.resample("30min").interpolate("linear")
             _weather_cache = df
             _weather_fetched_at = now
             log.info(f"Météo rechargée : {len(df)} slots 15-min")

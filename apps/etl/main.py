@@ -77,7 +77,7 @@ def fetch_weather(target_date: date) -> pd.DataFrame:
     }
     use_archive = (date.today() - target_date).days > 7
     url  = _OPEN_METEO_ARCHIVE_URL if use_archive else _OPEN_METEO_FORECAST_URL
-    resp = requests.get(url, params=params, timeout=30)
+    resp = requests.get(url, params=params, timeout=120)
     resp.raise_for_status()
     hourly = resp.json()["hourly"]
 
@@ -88,8 +88,8 @@ def fetch_weather(target_date: date) -> pd.DataFrame:
         .dt.tz_convert("UTC")
     )
     df = df.set_index("time")
-    df = df.resample("15min").interpolate("linear")
-    print(f"Meteo : {len(df)} slots 15-min ({date_str})")
+    df = df.resample("30min").interpolate("linear")
+    print(f"Meteo : {len(df)} slots 30-min ({date_str})")
     return df
 
 
@@ -116,7 +116,10 @@ def fetch_energy(target_date: date) -> pd.DataFrame:
     df = pd.read_csv(StringIO(response.content.decode("utf-8-sig")), sep=";")
     df = df.drop(columns=[c for c in _ECO2MIX_TR_EXTRA_COLS if c in df.columns])
     df = df.rename(columns=_ECO2MIX_RENAME)
-    print(f"{len(df)} lignes récupérées pour le {date_str}")
+    # Garder uniquement les créneaux :00 et :30 pour cohérence avec l'historique
+    mask = pd.to_datetime(df["Date et Heure"], utc=True).dt.minute.isin([0, 30])
+    df = df[mask].reset_index(drop=True)
+    print(f"{len(df)} lignes récupérées pour le {date_str} (pas 30 min)")
     return df
 
 
