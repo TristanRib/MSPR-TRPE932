@@ -6,7 +6,7 @@ import holidays
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.impute import KNNImputer
+from sklearn.impute import SimpleImputer
 
 ROOT          = Path(__file__).parent.parent
 RAW_DIR       = Path(os.getenv("RAW_DIR",       str(ROOT / "data")))
@@ -93,7 +93,7 @@ def main():
         "is_holiday", "conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48",
     ]
 
-    imputer = KNNImputer(n_neighbors=17)
+    imputer = SimpleImputer(strategy="median")
     df[feature_cols] = imputer.fit_transform(df[feature_cols])
 
     MODELS_DIR.mkdir(exist_ok=True)
