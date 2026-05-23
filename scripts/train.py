@@ -147,11 +147,9 @@ def save_metrics_to_bq(results: list[dict], best_name: str):
 
 def save_model(model, name: str):
     MODELS_DIR.mkdir(exist_ok=True)
-    base = f"mspr_edf_{name.lower().replace(' ', '_')}"
-    pattern = re.compile(rf"{re.escape(base)}_(\d+)\.pkl")
-    numbers = [int(m.group(1)) for f in os.listdir(MODELS_DIR) if (m := pattern.match(f))]
-    next_num = max(numbers) + 1 if numbers else 1
-    path = MODELS_DIR / f"{base}_{next_num:02d}.pkl"
+    model_type = name.lower().replace(" ", "_")
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    path = MODELS_DIR / f"model_{model_type}_{date_str}.pkl"
     joblib.dump(model, path, compress=3)
     log.info(f"Modèle sauvegardé : {path.name}")
 

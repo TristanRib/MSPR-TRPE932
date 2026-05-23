@@ -15,7 +15,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
-from utils import load_latest_model
+from utils import load_latest_model, list_models
 from transform import prepare_features, add_lags, _WEATHER_COLS
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
@@ -47,10 +47,11 @@ def _get_artifacts() -> dict:
         if _artifacts is None or _artifacts["model_name"] != latest_name:
             model, model_name = load_latest_model(str(MODELS_DIR))
             _artifacts = {
-                "model":        model,
-                "model_name":   model_name,
-                "imputer":      joblib.load(MODELS_DIR / "imputer.pkl"),
-                "feature_cols": joblib.load(MODELS_DIR / "feature_cols.pkl"),
+                "model":            model,
+                "model_name":       model_name,
+                "imputer":          joblib.load(MODELS_DIR / "imputer.pkl"),
+                "feature_cols":     joblib.load(MODELS_DIR / "feature_cols.pkl"),
+                "isolation_forest": joblib.load(MODELS_DIR / "isolation_forest.pkl"),  # dict: model, score_min, score_max
             }
             log.info(f"Artefacts rechargés : {model_name}")
     return _artifacts
@@ -139,10 +140,24 @@ def predict():
         X = a["imputer"].transform(X)
         preds = a["model"].predict(X)
 
+        import numpy as np
+        iso_artifact  = a["isolation_forest"]
+        if_input      = np.column_stack([X, preds])
+        raw_scores    = iso_artifact["model"].decision_function(if_input)
+        score_min     = iso_artifact["score_min"]
+        score_max     = iso_artifact["score_max"]
+        confidence_pct = np.clip(
+            (raw_scores - score_min) / (score_max - score_min) * 100, 0, 100
+        )
+
         log.info(f"Prédiction de {len(slots)} slots depuis {start.isoformat()}")
         return [
-            {"datetime": s.isoformat(), "prediction_mw": round(float(p), 1)}
-            for s, p in zip(slots, preds)
+            {
+                "datetime":         s.isoformat(),
+                "prediction_mw":    round(float(p), 1),
+                "confidence_score": round(float(c), 1),
+            }
+            for s, p, c in zip(slots, preds, confidence_pct)
         ]
 
     except Exception as e:
@@ -155,7 +170,7 @@ def model_info():
     a = _get_artifacts()
     return {
         "model_name":       a["model_name"],
-        "models_available": os.listdir(str(MODELS_DIR)),
+        "models_available": list_models(str(MODELS_DIR)),
         "feature_cols":     a["feature_cols"],
     }
 
