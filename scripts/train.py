@@ -23,7 +23,7 @@ RUN_NOISE_ACCURACY = 0.01
 
 MODEL_NAME = "XGBoost"
 MODEL_PARAMS = dict(
-    n_estimators=978, learning_rate=0.046, max_depth=6,
+    n_estimators=676, learning_rate=0.064, max_depth=6,
     subsample=0.75, colsample_bytree=0.93, min_child_weight=5,
     gamma=4.0, reg_alpha=0.65, reg_lambda=2.65,
     random_state=42, n_jobs=-1,
@@ -117,9 +117,12 @@ def main():
     date_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     MODELS_DIR.mkdir(exist_ok=True)
 
+    eval_set = [(X_test, y_test)]
+
     log.info(f"Training {MODEL_NAME}...")
-    model = XGBRegressor(**MODEL_PARAMS)
-    model.fit(X_train, y_train)
+    model = XGBRegressor(objective="reg:quantileerror", quantile_alpha=0.5, early_stopping_rounds=50, **MODEL_PARAMS)
+    model.fit(X_train, y_train, eval_set=eval_set, verbose=False)
+    log.info(f"best_iteration={model.best_iteration}")
     metrics = compute_metrics(y_test, model.predict(X_test))
     log.info(f"R²={metrics['R2']:.4f}  RMSE={metrics['RMSE']:.1f}  MAPE={metrics['MAPE']:.4f}  Acc±5%={metrics['Accuracy (±5%)']:.4f}")
 
@@ -130,8 +133,9 @@ def main():
 
     for alpha, suffix in [(0.1, "p10"), (0.9, "p90")]:
         log.info(f"Training quantile {suffix}...")
-        m = XGBRegressor(objective="reg:quantileerror", quantile_alpha=alpha, **MODEL_PARAMS)
-        m.fit(X_train, y_train)
+        m = XGBRegressor(objective="reg:quantileerror", quantile_alpha=alpha, early_stopping_rounds=50, **MODEL_PARAMS)
+        m.fit(X_train, y_train, eval_set=eval_set, verbose=False)
+        log.info(f"best_iteration={m.best_iteration}")
         joblib.dump(m, MODELS_DIR / f"model_xgboost_{suffix}_{date_str}.pkl", compress=3)
         log.info(f"model_xgboost_{suffix}_{date_str}.pkl sauvegardé")
 
