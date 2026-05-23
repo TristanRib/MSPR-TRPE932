@@ -3,8 +3,5 @@ pandas
 numpy
 scikit-learn
 joblib
-xgboost
-lightgbm
 pyyaml
-google-cloud-bigquery
 holidays

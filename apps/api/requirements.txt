@@ -1,10 +1,8 @@
 fastapi
 uvicorn[standard]
-numpy
 pandas
 joblib
 scikit-learn
 xgboost
 lightgbm
-requests
 holidays

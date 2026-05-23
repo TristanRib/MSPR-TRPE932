@@ -11,9 +11,7 @@ if not (_here / "transform.py").exists():
     sys.path.insert(0, str(_here.parent.parent / "scripts"))
 
 import joblib
-import numpy as np
 import pandas as pd
-import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -28,19 +26,15 @@ app = FastAPI()
 MODELS_DIR = Path(os.getenv("MODELS_DIR", "../outputs"))
 RAW_DIR    = Path(os.getenv("RAW_DIR",    "../data"))
 
-_OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-_WEATHER_TTL = timedelta(hours=1)
-_RAW_TTL     = timedelta(minutes=30)
-
 _artifacts: dict | None = None
 _artifacts_lock = threading.Lock()
 
 _weather_cache: pd.DataFrame | None = None
-_weather_fetched_at: datetime | None = None
+_weather_mtime: float | None = None
 _weather_lock = threading.Lock()
 
 _raw_cache: tuple[pd.Series, pd.Series] | None = None
-_raw_fetched_at: datetime | None = None
+_raw_mtime: float | None = None
 _raw_lock = threading.Lock()
 
 
@@ -63,41 +57,18 @@ def _get_artifacts() -> dict:
 
 
 def _get_raw_history() -> tuple[pd.Series, pd.Series]:
-    """Retourne (conso_hist, temp_hist) indexées par datetimes UTC.
-    Utilisé pour calculer les lags H-24 et H-168."""
-    global _raw_cache, _raw_fetched_at
-    now = datetime.now(timezone.utc)
-    if _raw_cache is not None and _raw_fetched_at is not None:
-        if now - _raw_fetched_at < _RAW_TTL:
-            return _raw_cache
+    """Retourne (conso_hist, temp_hist) indexées par datetimes UTC pour les lags.
+    Cache invalidé par mtime — rechargé exactement quand l'ETL modifie le fichier."""
+    global _raw_cache, _raw_mtime
+    raw_path = RAW_DIR / "raw_data.csv"
+    current_mtime = raw_path.stat().st_mtime
+    if _raw_cache is not None and _raw_mtime == current_mtime:
+        return _raw_cache
     with _raw_lock:
-        if _raw_cache is None or _raw_fetched_at is None or now - _raw_fetched_at >= _RAW_TTL:
+        current_mtime = raw_path.stat().st_mtime
+        if _raw_cache is None or _raw_mtime != current_mtime:
             df = pd.read_csv(
-                RAW_DIR / "raw_data.csv",
-                sep=";", encoding="utf-8-sig",
-                usecols=["Date et Heure", "Consommation (MW)", "temperature_2m"],
-                low_memory=False,
-            )
-            dt = pd.to_datetime(df["Date et Heure"], utc=True)
-            conso = pd.Series(pd.to_numeric(df["Consommation (MW)"], errors="coerce").values, index=dt)
-            temp  = pd.Series(pd.to_numeric(df["temperature_2m"],    errors="coerce").values, index=dt)
-            _raw_cache = (conso, temp)
-            _raw_fetched_at = now
-            log.info(f"raw_data.csv rechargé : {len(dt)} slots")
-    return _raw_cache
-
-
-def _get_raw_history() -> tuple[pd.Series, pd.Series]:
-    """Retourne (conso_hist, temp_hist) indexées par datetimes UTC pour les lags."""
-    global _raw_cache, _raw_fetched_at
-    now = datetime.now(timezone.utc)
-    if _raw_cache is not None and _raw_fetched_at is not None:
-        if now - _raw_fetched_at < _RAW_TTL:
-            return _raw_cache
-    with _raw_lock:
-        if _raw_cache is None or _raw_fetched_at is None or now - _raw_fetched_at >= _RAW_TTL:
-            df = pd.read_csv(
-                RAW_DIR / "raw_data.csv",
+                raw_path,
                 sep=";", encoding="utf-8-sig",
                 usecols=["Date et Heure", "Consommation (MW)", "temperature_2m"],
                 low_memory=False,
@@ -106,41 +77,26 @@ def _get_raw_history() -> tuple[pd.Series, pd.Series]:
             conso = pd.Series(pd.to_numeric(df["Consommation (MW)"], errors="coerce").values, index=dt)
             temp  = pd.Series(pd.to_numeric(df["temperature_2m"],    errors="coerce").values, index=dt)
             _raw_cache = (conso, temp)
-            _raw_fetched_at = now
+            _raw_mtime = current_mtime
             log.info(f"raw_data.csv rechargé : {len(dt)} slots")
     return _raw_cache
 
 
 def _get_weather() -> pd.DataFrame:
-    global _weather_cache, _weather_fetched_at
-    now = datetime.now(timezone.utc)
-    if _weather_cache is not None and _weather_fetched_at is not None:
-        if now - _weather_fetched_at < _WEATHER_TTL:
-            return _weather_cache
+    """Lit weather_forecast.csv écrit par l'ETL. Cache invalidé par mtime."""
+    global _weather_cache, _weather_mtime
+    weather_path = RAW_DIR / "weather_forecast.csv"
+    current_mtime = weather_path.stat().st_mtime
+    if _weather_cache is not None and _weather_mtime == current_mtime:
+        return _weather_cache
     with _weather_lock:
-        if _weather_cache is None or _weather_fetched_at is None or now - _weather_fetched_at >= _WEATHER_TTL:
-            params = {
-                "latitude":      46,
-                "longitude":     2,
-                "timezone":      "Europe/Paris",
-                "hourly":        ",".join(_WEATHER_COLS),
-                "forecast_days": 2,
-            }
-            resp = requests.get(_OPEN_METEO_FORECAST_URL, params=params, timeout=30)
-            resp.raise_for_status()
-            hourly = resp.json()["hourly"]
-
-            df = pd.DataFrame(hourly)
-            df["time"] = (
-                pd.to_datetime(df["time"])
-                .dt.tz_localize("Europe/Paris", ambiguous="infer")
-                .dt.tz_convert("UTC")
-            )
-            df = df.set_index("time")
-            df = df.resample("30min").interpolate("linear")
+        current_mtime = weather_path.stat().st_mtime
+        if _weather_cache is None or _weather_mtime != current_mtime:
+            df = pd.read_csv(weather_path, index_col=0, parse_dates=True)
+            df.index = pd.to_datetime(df.index, utc=True)
             _weather_cache = df
-            _weather_fetched_at = now
-            log.info(f"Météo rechargée : {len(df)} slots 15-min")
+            _weather_mtime = current_mtime
+            log.info(f"weather_forecast.csv rechargé : {len(df)} slots")
     return _weather_cache
 
 

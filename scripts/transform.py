@@ -6,7 +6,7 @@ import holidays
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.impute import SimpleImputer
+from sklearn.impute import KNNImputer
 
 ROOT          = Path(__file__).parent.parent
 RAW_DIR       = Path(os.getenv("RAW_DIR",       str(ROOT / "data")))
@@ -23,22 +23,17 @@ def add_lags(
     conso_hist: pd.Series | None = None,
     temp_hist: pd.Series | None = None,
 ) -> pd.DataFrame:
-    """Ajoute conso_h24, conso_h168, temp_h24.
-    En mode entraînement (historiques None) : shift sur df.
-    En mode API (historiques fournis) : lookup dans les séries indexées UTC."""
+    """Ajoute conso_h24, conso_h48, conso_h168, temp_h24, temp_h48.
+    En mode entraînement (historiques None) : lookup dans df lui-même (index UTC).
+    En mode API (historiques fournis) : lookup dans les séries historiques indexées UTC."""
     df = df.copy()
-    if conso_hist is not None and temp_hist is not None:
-        df["conso_h24"]  = conso_hist.reindex(df.index - pd.Timedelta(hours=24)).values
-        df["conso_h48"]  = conso_hist.reindex(df.index - pd.Timedelta(hours=48)).values
-        df["conso_h168"] = conso_hist.reindex(df.index - pd.Timedelta(hours=168)).values
-        df["temp_h24"]   = temp_hist.reindex(df.index - pd.Timedelta(hours=24)).values
-        df["temp_h48"]   = temp_hist.reindex(df.index - pd.Timedelta(hours=48)).values
-    else:
-        df["conso_h24"]  = df[_CONSO_COL].shift(48)    # 48 × 30 min = 24 h
-        df["conso_h48"]  = df[_CONSO_COL].shift(96)   # 96 × 30 min = 48 h
-        df["conso_h168"] = df[_CONSO_COL].shift(336)  # 336 × 30 min = 7 j
-        df["temp_h24"]   = df["temperature_2m"].shift(48)
-        df["temp_h48"]   = df["temperature_2m"].shift(96)
+    conso = conso_hist if conso_hist is not None else df[_CONSO_COL]
+    temp  = temp_hist  if temp_hist  is not None else df["temperature_2m"]
+    df["conso_h24"]  = conso.reindex(df.index - pd.Timedelta(hours=24)).values
+    df["conso_h48"]  = conso.reindex(df.index - pd.Timedelta(hours=48)).values
+    df["conso_h168"] = conso.reindex(df.index - pd.Timedelta(hours=168)).values
+    df["temp_h24"]   = temp.reindex(df.index - pd.Timedelta(hours=24)).values
+    df["temp_h48"]   = temp.reindex(df.index - pd.Timedelta(hours=48)).values
     return df
 
 
@@ -48,21 +43,22 @@ def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = [re.sub(r"\s*\(.*?\)\s*$", "", col).strip() for col in df.columns]
     df = df.rename(columns={"Date et Heure": _DATETIME_COL})
 
-    dt = pd.to_datetime(df[_DATETIME_COL], utc=True)
+    dt     = pd.to_datetime(df[_DATETIME_COL], utc=True)
+    dt_par = dt.dt.tz_convert("Europe/Paris")
     df = df.drop(columns=[_DATETIME_COL])
 
-    hour_frac = dt.dt.hour + dt.dt.minute / 60
-    df["hour_sin"]  = np.sin(2 * np.pi * hour_frac        / 24)
-    df["hour_cos"]  = np.cos(2 * np.pi * hour_frac        / 24)
-    df["day_sin"]   = np.sin(2 * np.pi * dt.dt.dayofweek  / 7)
-    df["day_cos"]   = np.cos(2 * np.pi * dt.dt.dayofweek  / 7)
-    df["month_sin"] = np.sin(2 * np.pi * dt.dt.month      / 12)
-    df["month_cos"] = np.cos(2 * np.pi * dt.dt.month      / 12)
+    hour_frac = dt_par.dt.hour + dt_par.dt.minute / 60
+    df["hour_sin"]  = np.sin(2 * np.pi * hour_frac            / 24)
+    df["hour_cos"]  = np.cos(2 * np.pi * hour_frac            / 24)
+    df["day_sin"]   = np.sin(2 * np.pi * dt_par.dt.dayofweek  / 7)
+    df["day_cos"]   = np.cos(2 * np.pi * dt_par.dt.dayofweek  / 7)
+    df["month_sin"] = np.sin(2 * np.pi * dt_par.dt.month      / 12)
+    df["month_cos"] = np.cos(2 * np.pi * dt_par.dt.month      / 12)
 
     df.index = dt
 
     fr_holidays = holidays.France()
-    df["is_holiday"] = dt.dt.date.map(lambda d: int(d in fr_holidays)).values
+    df["is_holiday"] = dt_par.dt.date.map(lambda d: int(d in fr_holidays)).values
 
     for col in df.select_dtypes(include="object").columns:
         df[col] = pd.to_numeric(df[col].replace("ND", np.nan), errors="coerce")
@@ -83,6 +79,7 @@ def main():
     )
     df = df.sort_values(by=["Date et Heure"], ascending=True).reset_index(drop=True)
     df = prepare_features(df)
+    df = df[~df.index.duplicated(keep="first")]
     df = add_lags(df)
     df = df.dropna(subset=[_CONSO_COL, "conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48"])
 
@@ -96,7 +93,7 @@ def main():
         "is_holiday", "conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48",
     ]
 
-    imputer = SimpleImputer(strategy="median")
+    imputer = KNNImputer(n_neighbors=17)
     df[feature_cols] = imputer.fit_transform(df[feature_cols])
 
     MODELS_DIR.mkdir(exist_ok=True)
