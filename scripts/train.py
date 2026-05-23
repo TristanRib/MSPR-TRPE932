@@ -23,7 +23,7 @@ RUN_NOISE_ACCURACY = 0.01
 
 MODEL_NAME = "XGBoost"
 MODEL_PARAMS = dict(
-    n_estimators=676, learning_rate=0.064, max_depth=6,
+    n_estimators=978, learning_rate=0.046, max_depth=6,
     subsample=0.75, colsample_bytree=0.93, min_child_weight=5,
     gamma=4.0, reg_alpha=0.65, reg_lambda=2.65,
     random_state=42, n_jobs=-1,
