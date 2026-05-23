@@ -47,14 +47,6 @@ jobs:
           docker build -f apps/forecast/Dockerfile -t $IMAGE apps/forecast/
           docker push $IMAGE
 
-      - name: Deploy API
-        run: |
-          gcloud run deploy api \
-            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest \
-            --region=${{ vars.REGION }} \
-            --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models \
-            --quiet
-
       - name: Update ETL Job
         run: |
           gcloud run jobs update etl-job \
@@ -78,4 +70,12 @@ jobs:
             --region=${{ vars.REGION }} \
             --task-timeout=180 \
             --set-env-vars API_URL=https://api-s43aq3mwuq-ew.a.run.app,BQ_TABLE=${{ vars.PROJECT }}.mspr_energie.predictions \
+            --quiet
+
+      - name: Deploy API
+        run: |
+          gcloud run deploy api \
+            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest \
+            --region=${{ vars.REGION }} \
+            --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models \
             --quiet

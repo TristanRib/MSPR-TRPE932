@@ -101,8 +101,6 @@ def _get_weather() -> pd.DataFrame:
     return _weather_cache
 
 
-# Plante au démarrage si les artefacts sont absents
-_get_artifacts()
 
 
 @app.exception_handler(Exception)
