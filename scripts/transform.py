@@ -119,7 +119,7 @@ def main():
     ]
 
     complete = df[["conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48", "temp_h168"]].notna().all(axis=1)
-    imputer  = KNNImputer(n_neighbors=5)
+    imputer  = KNNImputer(n_neighbors=17)
     imputer.fit(df.loc[complete, feature_cols].to_numpy())
     df[feature_cols] = cast(np.ndarray, imputer.transform(df[feature_cols].to_numpy()))
 
