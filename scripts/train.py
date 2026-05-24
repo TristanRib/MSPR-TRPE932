@@ -34,8 +34,13 @@ def load_data():
     df = pd.read_csv(PROCESSED_DIR / "transformed_data.csv")
     X = df.drop(columns=["Consommation"])
     y = df["Consommation"]
-    split = int(len(df) * 0.8)
-    return X.iloc[:split], X.iloc[split:], y.iloc[:split], y.iloc[split:]
+    n = len(df)
+    split_tr  = int(n * 0.70)
+    split_cal = int(n * 0.80)
+    return (
+        X.iloc[:split_tr], X.iloc[split_tr:split_cal], X.iloc[split_cal:],
+        y.iloc[:split_tr], y.iloc[split_tr:split_cal], y.iloc[split_cal:],
+    )
 
 
 def compute_metrics(y_true, y_pred) -> dict:
@@ -113,14 +118,14 @@ def save_metrics_to_bq(metrics: dict):
 
 
 def main():
-    X_train, X_test, y_train, y_test = load_data()
+    X_train, X_calib, X_test, y_train, y_calib, y_test = load_data()
     date_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     MODELS_DIR.mkdir(exist_ok=True)
 
     sample_weight = np.exp(np.linspace(0, 2, len(X_train)))
 
-    log.info(f"Training {MODEL_NAME}...")
-    model = XGBRegressor(objective="reg:quantileerror", quantile_alpha=0.5, **MODEL_PARAMS)
+    log.info(f"Training {MODEL_NAME} (MSE)...")
+    model = XGBRegressor(objective="reg:squarederror", **MODEL_PARAMS)
     model.fit(X_train, y_train, sample_weight=sample_weight)
     metrics = compute_metrics(y_test, model.predict(X_test))
     log.info(f"R²={metrics['R2']:.4f}  RMSE={metrics['RMSE']:.1f}  MAPE={metrics['MAPE']:.4f}  Acc±5%={metrics['Accuracy (±5%)']:.4f}")
@@ -130,12 +135,22 @@ def main():
     joblib.dump(model, MODELS_DIR / f"model_xgboost_{date_str}.pkl", compress=3)
     log.info(f"model_xgboost_{date_str}.pkl sauvegardé")
 
+    quantile_models = {}
     for alpha, suffix in [(0.1, "p10"), (0.9, "p90")]:
         log.info(f"Training quantile {suffix}...")
         m = XGBRegressor(objective="reg:quantileerror", quantile_alpha=alpha, **MODEL_PARAMS)
         m.fit(X_train, y_train, sample_weight=sample_weight)
         joblib.dump(m, MODELS_DIR / f"model_xgboost_{suffix}_{date_str}.pkl", compress=3)
         log.info(f"model_xgboost_{suffix}_{date_str}.pkl sauvegardé")
+        quantile_models[suffix] = m
+
+    log.info("Calibration CQR...")
+    p10_cal = quantile_models["p10"].predict(X_calib)
+    p90_cal = quantile_models["p90"].predict(X_calib)
+    scores  = np.maximum(p10_cal - y_calib.values, y_calib.values - p90_cal)
+    q       = float(np.quantile(scores, 0.80))
+    joblib.dump(q, MODELS_DIR / "cqr_correction.pkl")
+    log.info(f"CQR q={q:.1f} MW sauvegardé")
 
     save_metrics_to_bq(metrics)
 

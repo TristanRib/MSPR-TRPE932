@@ -48,12 +48,13 @@ def _get_artifacts() -> dict:
             model, model_name = load_latest_model(str(MODELS_DIR))
             p10_model, p90_model = load_quantile_models(str(MODELS_DIR))
             _artifacts = {
-                "model":        model,
-                "model_name":   model_name,
-                "p10_model":    p10_model,
-                "p90_model":    p90_model,
-                "imputer":      joblib.load(MODELS_DIR / "imputer.pkl"),
-                "feature_cols": joblib.load(MODELS_DIR / "feature_cols.pkl"),
+                "model":          model,
+                "model_name":     model_name,
+                "p10_model":      p10_model,
+                "p90_model":      p90_model,
+                "imputer":        joblib.load(MODELS_DIR / "imputer.pkl"),
+                "feature_cols":   joblib.load(MODELS_DIR / "feature_cols.pkl"),
+                "cqr_correction": joblib.load(MODELS_DIR / "cqr_correction.pkl"),
             }
             log.info(f"Artefacts rechargés : {model_name}")
     return _artifacts
@@ -138,9 +139,10 @@ def predict():
 
         X = df.reindex(columns=a["feature_cols"]).values.astype(float)
         X = a["imputer"].transform(X)
+        q         = a["cqr_correction"]
         preds     = a["model"].predict(X)
-        preds_p10 = a["p10_model"].predict(X)
-        preds_p90 = a["p90_model"].predict(X)
+        preds_p10 = a["p10_model"].predict(X) - q
+        preds_p90 = a["p90_model"].predict(X) + q
 
         log.info(f"Prédiction de {len(slots)} slots depuis {start.isoformat()}")
         return [
