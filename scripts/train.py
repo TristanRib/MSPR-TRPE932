@@ -117,9 +117,11 @@ def main():
     date_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     MODELS_DIR.mkdir(exist_ok=True)
 
+    sample_weight = np.exp(np.linspace(0, 2, len(X_train)))
+
     log.info(f"Training {MODEL_NAME}...")
     model = XGBRegressor(objective="reg:quantileerror", quantile_alpha=0.5, **MODEL_PARAMS)
-    model.fit(X_train, y_train)
+    model.fit(X_train, y_train, sample_weight=sample_weight)
     metrics = compute_metrics(y_test, model.predict(X_test))
     log.info(f"R²={metrics['R2']:.4f}  RMSE={metrics['RMSE']:.1f}  MAPE={metrics['MAPE']:.4f}  Acc±5%={metrics['Accuracy (±5%)']:.4f}")
 
@@ -131,7 +133,7 @@ def main():
     for alpha, suffix in [(0.1, "p10"), (0.9, "p90")]:
         log.info(f"Training quantile {suffix}...")
         m = XGBRegressor(objective="reg:quantileerror", quantile_alpha=alpha, **MODEL_PARAMS)
-        m.fit(X_train, y_train)
+        m.fit(X_train, y_train, sample_weight=sample_weight)
         joblib.dump(m, MODELS_DIR / f"model_xgboost_{suffix}_{date_str}.pkl", compress=3)
         log.info(f"model_xgboost_{suffix}_{date_str}.pkl sauvegardé")
 
