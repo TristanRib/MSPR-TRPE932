@@ -82,6 +82,7 @@ def fetch_weather_forecast() -> pd.DataFrame:
         .dt.tz_convert("UTC")
     )
     df = df.set_index("time")
+    df = df[~df.index.duplicated(keep="first")]
     df = df.resample("30min").interpolate("linear")
     log.info(f"Météo forecast : {len(df)} slots 30-min")
     return df
@@ -162,7 +163,9 @@ def _fetch_weather_range(since: date, until: date) -> pd.DataFrame | None:
             .dt.tz_localize("Europe/Paris", ambiguous="infer", nonexistent="shift_forward")
             .dt.tz_convert("UTC")
         )
-        df = df.set_index("time").resample("30min").interpolate("linear")
+        df = df.set_index("time")
+        df = df[~df.index.duplicated(keep="first")]
+        df = df.resample("30min").interpolate("linear")
         log.info(f"Météo archive bulk : {len(df)} slots ({since} → {until - timedelta(days=1)})")
         return df
     except Exception as e:
