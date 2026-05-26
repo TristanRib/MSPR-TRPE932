@@ -79,3 +79,11 @@ jobs:
             --region=${{ vars.REGION }} \
             --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models \
             --quiet
+
+      - name: Deploy Workflow ETL→Forecast
+        run: |
+          gcloud workflows deploy etl-forecast \
+            --source=workflows/etl_forecast.yaml \
+            --location=${{ vars.REGION }} \
+            --service-account=${{ vars.COMPUTE_SA }} \
+            --quiet

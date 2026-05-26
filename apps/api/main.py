@@ -148,9 +148,9 @@ def predict():
         return [
             {
                 "datetime":       s.isoformat(),
-                "prediction_mw":  round(float(p),   1),
-                "prediction_p10": round(float(p10), 1),
-                "prediction_p90": round(float(p90), 1),
+                "prediction_mw":  round(float(p)   / 10) * 10,
+                "prediction_p10": round(float(p10) / 10) * 10,
+                "prediction_p90": round(float(p90) / 10) * 10,
             }
             for s, p, p10, p90 in zip(slots, preds, preds_p10, preds_p90)
         ]

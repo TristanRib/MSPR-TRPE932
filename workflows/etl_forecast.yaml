@@ -1,0 +1,53 @@
+main:
+  steps:
+    - init:
+        assign:
+          - project: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - region: "europe-west1"
+          - base_url: ${"https://run.googleapis.com/v2/projects/" + project + "/locations/" + region + "/jobs/"}
+
+    - run_etl:
+        call: http.post
+        args:
+          url: ${base_url + "etl-job:run"}
+          auth:
+            type: OAuth2
+        result: etl_run
+
+    - poll_etl:
+        call: http.get
+        args:
+          url: ${"https://run.googleapis.com/v2/" + etl_run.body.name}
+          auth:
+            type: OAuth2
+        result: exec_status
+
+    - read_etl_status:
+        assign:
+          - succeeded: ${default(map.get(exec_status.body, "succeededCount"), 0)}
+          - failed: ${default(map.get(exec_status.body, "failedCount"), 0)}
+
+    - check_etl:
+        switch:
+          - condition: ${int(succeeded) >= 1}
+            next: run_forecast
+          - condition: ${int(failed) >= 1}
+            raise: ${"ETL failed - failedCount=" + string(int(failed))}
+        next: sleep_etl
+
+    - sleep_etl:
+        call: sys.sleep
+        args:
+          seconds: 30
+        next: poll_etl
+
+    - run_forecast:
+        call: http.post
+        args:
+          url: ${base_url + "forecast:run"}
+          auth:
+            type: OAuth2
+        result: forecast_run
+
+    - done:
+        return: "Pipeline OK"
