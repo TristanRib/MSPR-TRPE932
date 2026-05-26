@@ -80,7 +80,7 @@ jobs:
             --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models \
             --quiet
 
-      - name: Deploy Workflow ETL→Forecast
+      - name: Deploy Workflow ETL-Forecast
         run: |
           gcloud workflows deploy etl-forecast \
             --source=workflows/etl_forecast.yaml \
