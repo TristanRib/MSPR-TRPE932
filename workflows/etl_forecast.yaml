@@ -14,10 +14,14 @@ main:
             type: OAuth2
         result: etl_run
 
+    - get_execution_name:
+        assign:
+          - execution_name: ${etl_run.body.metadata.name}
+
     - poll_etl:
         call: http.get
         args:
-          url: ${"https://run.googleapis.com/v2/" + etl_run.body.name}
+          url: ${"https://run.googleapis.com/v2/" + execution_name}
           auth:
             type: OAuth2
         result: exec_status

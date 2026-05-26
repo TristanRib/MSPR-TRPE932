@@ -6,3 +6,4 @@ scikit-learn
 xgboost
 lightgbm
 holidays
+google-cloud-logging

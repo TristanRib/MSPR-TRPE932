@@ -5,7 +5,11 @@ from datetime import datetime, timezone
 import requests
 from google.cloud import bigquery
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+try:
+    import google.cloud.logging as _glog
+    _glog.Client().setup_logging()
+except Exception:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
 
 API_URL = os.environ["API_URL"]

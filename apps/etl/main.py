@@ -14,7 +14,11 @@ from io import StringIO
 import requests
 import pandas as pd
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+try:
+    import google.cloud.logging as _glog
+    _glog.Client().setup_logging()
+except Exception:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
 
 from transform import RAW_DIR, _WEATHER_COLS
