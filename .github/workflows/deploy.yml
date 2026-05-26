@@ -78,6 +78,7 @@ jobs:
           gcloud run deploy api \
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest \
             --region=${{ vars.REGION }} \
+            --concurrency=1 \
             --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models \
             --quiet
 

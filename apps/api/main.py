@@ -3,6 +3,8 @@ import os
 import sys
 import traceback
 import threading
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -25,8 +27,6 @@ except Exception:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
 
-app = FastAPI()
-
 MODELS_DIR = Path(os.getenv("MODELS_DIR", "../outputs"))
 RAW_DIR    = Path(os.getenv("RAW_DIR",    "../data"))
 
@@ -41,10 +41,36 @@ _raw_cache: tuple[pd.Series, pd.Series] | None = None
 _raw_mtime: float | None = None
 _raw_lock = threading.Lock()
 
+# Cache de la matrice de features : invalide quand l'ETL tourne (mtime) ou quand le slot de 30min avance
+_features_cache: dict | None = None
+_features_lock = threading.Lock()
+
+_predict_executor = ThreadPoolExecutor(max_workers=3)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    try:
+        _get_artifacts()
+        _get_raw_history()
+        _get_weather()
+        log.info("Pre-warm terminé")
+    except Exception as e:
+        log.warning(f"Pre-warm partiel : {e}")
+    yield
+    _predict_executor.shutdown(wait=False)
+
+
+app = FastAPI(lifespan=lifespan)
+
 
 def _get_artifacts() -> dict:
     global _artifacts
-    _, latest_name = load_latest_model(str(MODELS_DIR))
+    # listdir uniquement pour comparer le nom — pas de désérialisation pickle
+    models = list_models(str(MODELS_DIR))
+    if not models:
+        raise FileNotFoundError("Aucun modèle trouvé dans le dossier.")
+    latest_name = models[0]
     if _artifacts is not None and _artifacts["model_name"] == latest_name:
         return _artifacts
     with _artifacts_lock:
@@ -108,6 +134,31 @@ def _get_weather() -> pd.DataFrame:
     return _weather_cache
 
 
+def _get_features(start: datetime) -> tuple:
+    """Retourne (X_imputed, slots) cachés par (weather_mtime, raw_mtime, start).
+    Invalide automatiquement à chaque run ETL (mtime change) ou nouveau slot de 30min."""
+    global _features_cache
+    key = (_weather_mtime, _raw_mtime, start.isoformat())
+    with _features_lock:
+        if _features_cache is not None and _features_cache["key"] == key:
+            return _features_cache["X"], _features_cache["slots"]
+
+        weather               = _get_weather()
+        a                     = _get_artifacts()
+        conso_hist, temp_hist = _get_raw_history()
+
+        slots = pd.date_range(start, periods=48, freq="30min")
+        df_slots = pd.DataFrame(
+            {"Date et Heure": slots, **{col: weather[col].reindex(slots).values for col in _WEATHER_COLS}}
+        )
+        df = prepare_features(df_slots)
+        df = add_lags(df, conso_hist=conso_hist, temp_hist=temp_hist)
+        X = df.reindex(columns=a["feature_cols"]).values.astype(float)
+        X = a["imputer"].transform(X)
+
+        _features_cache = {"key": key, "X": X, "slots": slots}
+        log.info(f"Features recalculées pour slot {start.isoformat()}")
+        return X, slots
 
 
 @app.exception_handler(Exception)
@@ -129,24 +180,17 @@ def predict():
         remainder = now.minute % 30
         delta = timedelta(minutes=(30 - remainder) % 30)
         start = (now + delta).replace(second=0, microsecond=0)
-        slots = pd.date_range(start, periods=48, freq="30min")
 
-        weather               = _get_weather()
-        a                     = _get_artifacts()
-        conso_hist, temp_hist = _get_raw_history()
+        a        = _get_artifacts()
+        X, slots = _get_features(start)
+        q        = a["cqr_correction"]
 
-        df_slots = pd.DataFrame(
-            {"Date et Heure": slots, **{col: weather[col].reindex(slots).values for col in _WEATHER_COLS}}
-        )
-        df = prepare_features(df_slots)
-        df = add_lags(df, conso_hist=conso_hist, temp_hist=temp_hist)
-
-        X = df.reindex(columns=a["feature_cols"]).values.astype(float)
-        X = a["imputer"].transform(X)
-        q         = a["cqr_correction"]
-        preds     = a["model"].predict(X)
-        preds_p10 = a["p10_model"].predict(X) - q
-        preds_p90 = a["p90_model"].predict(X) + q
+        f_pred = _predict_executor.submit(a["model"].predict,     X)
+        f_p10  = _predict_executor.submit(a["p10_model"].predict, X)
+        f_p90  = _predict_executor.submit(a["p90_model"].predict, X)
+        preds     = f_pred.result()
+        preds_p10 = f_p10.result() - q
+        preds_p90 = f_p90.result() + q
 
         log.info(f"Prédiction de {len(slots)} slots depuis {start.isoformat()}")
         return [
