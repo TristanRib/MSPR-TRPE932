@@ -53,6 +53,8 @@ jobs:
           gcloud run jobs update etl-job \
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/etl:latest \
             --region=${{ vars.REGION }} \
+            --memory=2Gi \
+            --cpu=1 \
             --update-env-vars RAW_DIR=/app/gcs/raw \
             --quiet
 
@@ -61,6 +63,8 @@ jobs:
           gcloud run jobs update train-job \
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/train:latest \
             --region=${{ vars.REGION }} \
+            --memory=8Gi \
+            --cpu=2 \
             --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models,PROCESSED_DIR=/app/gcs/processed,BQ_METRICS_TABLE=${{ vars.PROJECT }}.mspr_energie.model_runs \
             --quiet
 
@@ -69,6 +73,8 @@ jobs:
           gcloud run jobs update forecast \
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/forecast:latest \
             --region=${{ vars.REGION }} \
+            --memory=512Mi \
+            --cpu=1 \
             --task-timeout=180 \
             --set-env-vars API_URL=https://api-s43aq3mwuq-ew.a.run.app,BQ_TABLE=${{ vars.PROJECT }}.mspr_energie.predictions \
             --quiet
@@ -79,6 +85,12 @@ jobs:
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest \
             --region=${{ vars.REGION }} \
             --concurrency=1 \
+            --min-instances=1 \
+            --max-instances=10 \
+            --memory=2Gi \
+            --cpu=1 \
+            --timeout=180 \
+            --cpu-boost \
             --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models \
             --quiet
 

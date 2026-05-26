@@ -177,9 +177,7 @@ def health():
 def predict():
     try:
         now = datetime.now(timezone.utc)
-        remainder = now.minute % 30
-        delta = timedelta(minutes=(30 - remainder) % 30)
-        start = (now + delta).replace(second=0, microsecond=0)
+        start = now.replace(minute=0, second=0, microsecond=0)
 
         a        = _get_artifacts()
         X, slots = _get_features(start)
