@@ -85,5 +85,5 @@ jobs:
           gcloud workflows deploy etl-forecast \
             --source=workflows/etl_forecast.yaml \
             --location=${{ vars.REGION }} \
-            --service-account=${{ vars.COMPUTE_SA }} \
+            --service-account=1087457673688-compute@developer.gserviceaccount.com \
             --quiet
