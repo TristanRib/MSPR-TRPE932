@@ -8,7 +8,9 @@ if not (_here / "transform.py").exists():
     sys.path.insert(0, str(_here.parent.parent / "scripts"))
 
 import logging
-from datetime import date, timedelta
+import time
+from datetime import date, timedelta, datetime
+from zoneinfo import ZoneInfo
 from io import StringIO
 
 import requests
@@ -69,6 +71,22 @@ _ECO2MIX_RENAME = {
 
 _ECO2MIX_TR_EXTRA_COLS = {"eolien_terrestre", "eolien_offshore", "stockage_batterie", "destockage_batterie"}
 
+
+def _with_retry(fn, *args, label: str, retries: int = 4, **kwargs):
+    last_exc = None
+    for attempt in range(retries):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            last_exc = e
+            if attempt < retries - 1:
+                wait = 2 ** (attempt + 1)
+                log.warning(f"{label} tentative {attempt + 1}/{retries} échouée ({e}), retry dans {wait}s")
+                time.sleep(wait)
+    log.error(f"{label} indisponible après {retries} tentatives : {last_exc}")
+    raise RuntimeError(f"{label} indisponible après {retries} tentatives") from last_exc
+
+
 def fetch_weather_forecast() -> pd.DataFrame:
     params = {
         "latitude":      46,
@@ -77,8 +95,11 @@ def fetch_weather_forecast() -> pd.DataFrame:
         "hourly":        ",".join(_WEATHER_COLS),
         "forecast_days": 2,
     }
-    resp = requests.get(_OPEN_METEO_FORECAST_URL, params=params, timeout=60)
-    resp.raise_for_status()
+    def _fetch():
+        resp = requests.get(_OPEN_METEO_FORECAST_URL, params=params, timeout=60)
+        resp.raise_for_status()
+        return resp
+    resp = _with_retry(_fetch, label="Météo forecast")
     df = pd.DataFrame(resp.json()["hourly"])
     df["time"] = (
         pd.to_datetime(df["time"])
@@ -108,23 +129,62 @@ def fetch_energy(target_date: date) -> pd.DataFrame:
         "delimiter": ";",
         "timezone":  "Europe/Paris",
     }
-    resp = requests.get(url, params=params, timeout=60)
-    resp.raise_for_status()
-
+    def _fetch():
+        resp = requests.get(url, params=params, timeout=60)
+        resp.raise_for_status()
+        return resp
+    resp = _with_retry(_fetch, label=f"Énergie {date_str}")
     df = pd.read_csv(StringIO(resp.content.decode("utf-8-sig")), sep=";")
     df = df.drop(columns=[c for c in _ECO2MIX_TR_EXTRA_COLS if c in df.columns])
     df = df.rename(columns=_ECO2MIX_RENAME)
-    # Garder uniquement les créneaux :00 et :30 pour cohérence avec l'historique
     mask = pd.to_datetime(df["Date et Heure"], utc=True).dt.minute.isin([0, 30])
     df = df[mask].reset_index(drop=True)
     log.info(f"{len(df)} lignes récupérées pour le {date_str} (pas 30 min)")
     return df
 
-def latest_raw_date() -> date | None:
+
+def _slot_dates(df: pd.DataFrame) -> "pd.Series[date]":
+    return (pd.to_datetime(df["Date et Heure"], utc=True)
+            .dt.tz_convert("Europe/Paris").dt.date)
+
+
+def _find_gaps() -> list[tuple[date, date]]:
+    """Plages de dates avec slots énergie ou météo incomplets, jusqu'à hier inclus."""
     raw_csv = RAW_DIR / "raw_data.csv"
-    df = pd.read_csv(raw_csv, sep=";", encoding="utf-8-sig", usecols=["Date"], low_memory=False)
-    dates = pd.to_datetime(df["Date"], errors="coerce").dropna()
-    return dates.max().date() if not dates.empty else None
+    df = pd.read_csv(raw_csv, sep=";", encoding="utf-8-sig",
+                     usecols=["Date et Heure", "Consommation (MW)", "temperature_2m"],
+                     low_memory=False)
+    yesterday = datetime.now(ZoneInfo("Europe/Paris")).date() - timedelta(days=1)
+    df["_date"] = _slot_dates(df)
+
+    min_date = df["_date"].dropna().min()
+    if pd.isna(min_date):
+        return []
+
+    energy_ok  = df[df["Consommation (MW)"].notna()].groupby("_date").size()
+    weather_ok = df[df["temperature_2m"].notna()].groupby("_date").size()
+    total      = df.groupby("_date").size()
+
+    gap_dates = sorted(
+        d for d in (min_date + timedelta(days=i)
+                    for i in range((yesterday - min_date).days + 1))
+        if d not in total.index                        # date complètement absente
+        or energy_ok.get(d, 0) < total[d]             # slots avec NaN énergie
+        or weather_ok.get(d, 0) < total[d]            # slots avec NaN météo
+    )
+
+    if not gap_dates:
+        return []
+    ranges, start, prev = [], gap_dates[0], gap_dates[0]
+    for d in gap_dates[1:]:
+        if (d - prev).days > 1:
+            ranges.append((start, prev + timedelta(days=1)))
+            start = d
+        prev = d
+    ranges.append((start, prev + timedelta(days=1)))
+    return ranges
+
+
 
 def _fetch_energy_range(since: date, until: date) -> pd.DataFrame | None:
     url = "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/eco2mix-national-tr/exports/csv"
@@ -225,27 +285,52 @@ def upsert_raw(new_df: pd.DataFrame):
 
 
 def main():
-    today = date.today()
+    today = datetime.now(ZoneInfo("Europe/Paris")).date()
     log.info(f"--- ETL données du {today} ---")
 
-    last = latest_raw_date()
-    if last is not None and last < today - timedelta(days=1):
-        backfill(since=last + timedelta(days=1), until=today)
+    # 1. Combler les gaps des runs précédentes
+    for since, until in _find_gaps():
+        log.info(f"Gap détecté : {since} → {until - timedelta(days=1)}, backfill...")
+        backfill(since, until)
 
-    energy = fetch_energy(today)
-    if energy.empty:
-        log.warning("Aucune donnée disponible pour aujourd'hui.")
-        return
+    # 2. Fetch d'aujourd'hui — indépendants
+    energy_exc = weather_exc = None
+    energy = forecast = None
 
-    forecast = fetch_weather_forecast()
-    energy   = merge_weather(energy, forecast)
-    upsert_raw(energy)
+    try:
+        energy = fetch_energy(today)
+        if energy.empty:
+            raise ValueError("Aucune donnée énergie disponible")
+    except Exception as e:
+        log.error(f"Énergie {today} indisponible : {e}")
+        energy_exc = e
+
+    try:
+        forecast = fetch_weather_forecast()
+    except Exception as e:
+        log.error(f"Météo forecast indisponible : {e}")
+        weather_exc = e
+
+    if energy_exc and weather_exc:
+        raise RuntimeError("Énergie et météo indisponibles") from energy_exc
+
+    # 3. Upsert énergie (avec météo si dispo)
+    if energy is not None:
+        upsert_raw(merge_weather(energy, forecast) if forecast is not None else energy)
+
     update_datacard()
 
-    forecast.to_csv(RAW_DIR / "weather_forecast.csv")
-    log.info(f"weather_forecast.csv sauvegardé ({len(forecast)} slots)")
+    if forecast is not None:
+        forecast.to_csv(RAW_DIR / "weather_forecast.csv")
+        log.info(f"weather_forecast.csv sauvegardé ({len(forecast)} slots)")
 
     log.info("--- ETL données terminé ---")
+
+    # Job fail si partiel — gap détecté au prochain run
+    if energy_exc:
+        raise RuntimeError("ETL partiel — énergie indisponible") from energy_exc
+    if weather_exc:
+        raise RuntimeError("ETL partiel — météo indisponible") from weather_exc
 
 
 if __name__ == "__main__":
