@@ -9,6 +9,7 @@ log = logging.getLogger(__name__)
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.impute import KNNImputer
 from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, r2_score
 from xgboost import XGBRegressor
 
@@ -121,6 +122,16 @@ def main():
     X_train, X_calib, X_test, y_train, y_calib, y_test = load_data()
     date_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     MODELS_DIR.mkdir(exist_ok=True)
+
+    lag_cols = ["conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48", "temp_h168"]
+    complete = X_train[lag_cols].notna().all(axis=1)
+    imputer  = KNNImputer(n_neighbors=17)
+    imputer.fit(X_train.loc[complete].to_numpy())
+    X_train = imputer.transform(X_train.to_numpy())
+    X_calib = imputer.transform(X_calib.to_numpy())
+    X_test  = imputer.transform(X_test.to_numpy())
+    joblib.dump(imputer, MODELS_DIR / "imputer.pkl", compress=3)
+    log.info("imputer.pkl sauvegardé (fitté sur X_train uniquement)")
 
     sample_weight = np.exp(np.linspace(0, 2, len(X_train)))
 

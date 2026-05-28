@@ -8,7 +8,6 @@ import holidays
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.impute import KNNImputer
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
@@ -36,9 +35,9 @@ def add_lags(
     conso = conso_hist if conso_hist is not None else df[_CONSO_COL]
     temp  = temp_hist  if temp_hist  is not None else df["temperature_2m"]
 
-    df["conso_h24"]  = conso.reindex(idx - pd.Timedelta(hours=24)).to_numpy()
-    df["conso_h48"]  = conso.reindex(idx - pd.Timedelta(hours=48)).to_numpy()
-    df["conso_h168"] = conso.reindex(idx - pd.Timedelta(hours=168)).to_numpy()
+    df["conso_h24"]    = conso.reindex(idx - pd.Timedelta(hours=24)).to_numpy()
+    df["conso_h48"]    = conso.reindex(idx - pd.Timedelta(hours=48)).to_numpy()
+    df["conso_h168"]   = conso.reindex(idx - pd.Timedelta(hours=168)).to_numpy()
 
     vals_7d = np.stack([conso.reindex(idx - pd.Timedelta(hours=h)).to_numpy()
                         for h in range(24, 169, 24)], axis=1)
@@ -85,6 +84,8 @@ def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
     df["is_holiday"]           = [int(ts.date() in fr_holidays)                          for ts in dt_par]
     df["is_day_after_holiday"] = [int((ts - pd.Timedelta(days=1)).date() in fr_holidays) for ts in dt_par]
 
+    df["is_energy_crisis"] = ((dt_par >= "2022-08-01") & (dt_par <= "2023-03-31")).astype(int).values
+
     for col in df.select_dtypes(include="object").columns:
         df[col] = pd.to_numeric(df[col].replace("ND", np.nan), errors="coerce")
 
@@ -120,17 +121,12 @@ def main():
         "conso_h24", "conso_h48", "conso_h168",
         "conso_mean_7d", "conso_mean_12w", "conso_mean_52w",
         "temp_h24", "temp_h48", "temp_h168",
+        "is_energy_crisis",
     ]
 
-    complete = df[["conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48", "temp_h168"]].notna().all(axis=1)
-    imputer  = KNNImputer(n_neighbors=17)
-    imputer.fit(df.loc[complete, feature_cols].to_numpy())
-    df[feature_cols] = cast(np.ndarray, imputer.transform(df[feature_cols].to_numpy()))
-
     MODELS_DIR.mkdir(exist_ok=True)
-    joblib.dump(imputer, MODELS_DIR / "imputer.pkl", compress=3)
     joblib.dump(feature_cols, MODELS_DIR / "feature_cols.pkl")
-    log.info(f"imputer.pkl sauvegardé ({len(feature_cols)} features)")
+    log.info(f"feature_cols.pkl sauvegardé ({len(feature_cols)} features)")
 
     PROCESSED_DIR.mkdir(exist_ok=True)
     df[feature_cols + [_CONSO_COL]].to_csv(PROCESSED_DIR / "transformed_data.csv", index=False)
