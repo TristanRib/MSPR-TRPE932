@@ -311,12 +311,12 @@ def _check_prediction_drift():
         from google.cloud import bigquery
         client = bigquery.Client()
 
-        # Toutes les prédictions passées pour calculer les références dynamiques
+        # Toutes les prédictions passées — dernière run_at par slot (dédup WRITE_APPEND)
         all_query = f"""
-            SELECT predicted_at, AVG(prediction_mw) AS prediction_mw
+            SELECT predicted_at, prediction_mw
             FROM `{bq_table}`
             WHERE predicted_at < CURRENT_TIMESTAMP()
-            GROUP BY predicted_at
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY predicted_at ORDER BY run_at DESC) = 1
             ORDER BY predicted_at
         """
         all_pred_df = client.query(all_query).to_dataframe()
