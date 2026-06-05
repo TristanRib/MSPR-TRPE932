@@ -29,7 +29,8 @@ R2_NOISE      = 0.002   # tolérance vs meilleur historique
 ACC_NOISE     = 0.002   # tolérance vs meilleur historique (±5% accuracy)
 MAPE_NOISE    = 0.001   # tolérance vs meilleur historique
 
-MODEL_NAME = "XGBoost"
+MODEL_NAME       = "XGBoost"
+MODEL_FILE_STEM  = "model_xgboost"
 MODEL_PARAMS = dict(
     n_estimators=978, learning_rate=0.046, max_depth=6,
     subsample=0.75, colsample_bytree=0.93, min_child_weight=5,
@@ -161,16 +162,16 @@ def main():
 
     check_quality(metrics)
 
-    joblib.dump(model, MODELS_DIR / f"model_xgboost_{date_str}.pkl", compress=3)
-    log.info(f"model_xgboost_{date_str}.pkl sauvegardé")
+    joblib.dump(model, MODELS_DIR / f"{MODEL_FILE_STEM}_{date_str}.pkl", compress=3)
+    log.info(f"{MODEL_FILE_STEM}_{date_str}.pkl sauvegardé")
 
     quantile_models = {}
     for alpha, suffix in [(0.1, "p10"), (0.9, "p90")]:
         log.info(f"Training quantile {suffix}...")
         m = XGBRegressor(objective="reg:quantileerror", quantile_alpha=alpha, **MODEL_PARAMS)
         m.fit(X_train, y_train, sample_weight=sample_weight)
-        joblib.dump(m, MODELS_DIR / f"model_xgboost_{suffix}_{date_str}.pkl", compress=3)
-        log.info(f"model_xgboost_{suffix}_{date_str}.pkl sauvegardé")
+        joblib.dump(m, MODELS_DIR / f"{MODEL_FILE_STEM}_{suffix}_{date_str}.pkl", compress=3)
+        log.info(f"{MODEL_FILE_STEM}_{suffix}_{date_str}.pkl sauvegardé")
         quantile_models[suffix] = m
     
     log.info("Calibration CQR...")
