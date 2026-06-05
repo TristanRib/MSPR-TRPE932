@@ -20,10 +20,7 @@ from train import main as run_train
 def main():
     log.info("--- Job entraînement ---")
     run_transform()
-    try:
-        run_train()
-    except RuntimeError as e:
-        log.warning(f"Qualité insuffisante, ancien modèle conservé.\n{e}")
+    run_train()
     log.info("--- Entraînement terminé ---")
 
 

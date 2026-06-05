@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import warnings
 from pathlib import Path
 from typing import cast
 
@@ -44,15 +45,15 @@ def add_lags(
 
     vals_7d = np.stack([conso.reindex(idx - pd.Timedelta(hours=h)).to_numpy()
                         for h in range(24, 169, 24)], axis=1)
-    df["conso_mean_7d"] = np.nanmean(vals_7d, axis=1)
-
     vals_12w = np.stack([conso.reindex(idx - pd.Timedelta(hours=168 * w)).to_numpy()
                          for w in range(1, 13)], axis=1)
-    df["conso_mean_12w"] = np.nanmean(vals_12w, axis=1)
-
     vals_52w = np.stack([conso.reindex(idx - pd.Timedelta(hours=168 * w)).to_numpy()
                          for w in range(1, 53)], axis=1)
-    df["conso_mean_52w"] = np.nanmean(vals_52w, axis=1)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        df["conso_mean_7d"]  = np.nanmean(vals_7d,  axis=1)
+        df["conso_mean_12w"] = np.nanmean(vals_12w, axis=1)
+        df["conso_mean_52w"] = np.nanmean(vals_52w, axis=1)
 
     df["temp_h24"]  = temp.reindex(idx - pd.Timedelta(hours=24)).to_numpy()
     df["temp_h48"]  = temp.reindex(idx - pd.Timedelta(hours=48)).to_numpy()

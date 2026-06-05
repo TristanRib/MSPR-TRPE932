@@ -82,7 +82,7 @@ def _load_best_from_bq() -> dict | None:
         return None
 
 
-def check_quality(metrics: dict):
+def check_quality(metrics: dict) -> bool:
     # Niveau 1 — seuils absolus, toujours vérifiés
     hard_errors = []
     if metrics["RMSE"] > RMSE_FLOOR:
@@ -92,13 +92,14 @@ def check_quality(metrics: dict):
     if metrics["MAPE"] > MAPE_FLOOR:
         hard_errors.append(f"MAPE {metrics['MAPE']:.4f} > seuil absolu {MAPE_FLOOR}")
     if hard_errors:
-        raise RuntimeError("Contrôle qualité — seuils absolus franchis :\n" + "\n".join(f"  - {e}" for e in hard_errors))
+        log.warning("Modèle non retenu — seuils absolus franchis :\n" + "\n".join(f"  - {e}" for e in hard_errors))
+        return False
 
     # Niveau 2 — régression vs meilleur historique
     best = _load_best_from_bq()
     if best is None:
-        log.info("check_quality : aucune baseline BQ, seuils absolus validés uniquement")
-        return
+        log.info("Modèle retenu — aucune baseline BQ, seuils absolus validés uniquement")
+        return True
     reg_errors = []
     if metrics["RMSE"] > best["rmse"] + RMSE_NOISE:
         reg_errors.append(f"RMSE {metrics['RMSE']:.0f} MW > meilleur {best['rmse']:.0f} + {RMSE_NOISE:.0f} MW")
@@ -109,7 +110,10 @@ def check_quality(metrics: dict):
     if metrics["MAPE"] > best["mape"] + MAPE_NOISE:
         reg_errors.append(f"MAPE {metrics['MAPE']:.4f} > meilleur {best['mape']:.4f} + {MAPE_NOISE}")
     if reg_errors:
-        raise RuntimeError("Contrôle qualité — régression vs meilleur modèle :\n" + "\n".join(f"  - {e}" for e in reg_errors))
+        log.warning("Modèle non retenu — régression vs meilleur modèle :\n" + "\n".join(f"  - {e}" for e in reg_errors))
+        return False
+    log.info("Modèle retenu — contrôle qualité OK")
+    return True
 
 
 def save_metrics_to_bq(metrics: dict):
@@ -171,7 +175,9 @@ def main():
     metrics = compute_metrics(y_test, model.predict(X_test))
     log.info(f"R²={metrics['R2']:.4f}  RMSE={metrics['RMSE']:.1f}  MAPE={metrics['MAPE']:.4f}  Acc±5%={metrics['Accuracy (±5%)']:.4f}")
 
-    check_quality(metrics)
+    if not check_quality(metrics):
+        log.info("Ancien modèle conservé.")
+        return
 
     joblib.dump(model, MODELS_DIR / f"{MODEL_FILE_STEM}_{run_tag}.pkl", compress=3)
     log.info(f"{MODEL_FILE_STEM}_{run_tag}.pkl sauvegardé")
