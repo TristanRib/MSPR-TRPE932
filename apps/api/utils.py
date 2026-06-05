@@ -6,9 +6,9 @@ import joblib
 
 log = logging.getLogger(__name__)
 
-_MODEL_PATTERN    = re.compile(r"^model_(?!.+_(p10|p90)_).+_\d{8}\.pkl$")
-_P10_PATTERN      = re.compile(r"^model_.+_p10_\d{8}\.pkl$")
-_P90_PATTERN      = re.compile(r"^model_.+_p90_\d{8}\.pkl$")
+_MODEL_PATTERN    = re.compile(r"^model_(?!.+_(p10|p90)_).+_\d{8}_\d+\.pkl$")
+_P10_PATTERN      = re.compile(r"^model_.+_p10_\d{8}_\d+\.pkl$")
+_P90_PATTERN      = re.compile(r"^model_.+_p90_\d{8}_\d+\.pkl$")
 
 
 def list_models(models_dir: str) -> list[str]:

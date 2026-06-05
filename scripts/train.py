@@ -139,10 +139,21 @@ def save_metrics_to_bq(metrics: dict):
         log.warning(f"Push BigQuery échoué : {e}")
 
 
+def _run_tag(date_str: str) -> str:
+    existing = list(MODELS_DIR.glob(f"{MODEL_FILE_STEM}_{date_str}_*.pkl"))
+    main_runs = [f for f in existing if not re.search(r"_(p10|p90)_", f.name)]
+    if not main_runs:
+        return f"{date_str}_1"
+    counters = [int(m.group(1)) for f in main_runs if (m := re.search(rf"_{date_str}_(\d+)\.pkl$", f.name))]
+    return f"{date_str}_{max(counters) + 1}" if counters else f"{date_str}_1"
+
+
 def main():
     X_train, X_calib, X_test, y_train, y_calib, y_test = load_data()
     date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
     MODELS_DIR.mkdir(exist_ok=True)
+    run_tag = _run_tag(date_str)
+    log.info(f"Run tag : {run_tag}")
 
     imputer = KNNImputer(n_neighbors=17, weights="distance")
     imputer.fit(X_train.iloc[-35040:].to_numpy())  # 2 dernières années (35040 slots 30-min)
@@ -162,16 +173,16 @@ def main():
 
     check_quality(metrics)
 
-    joblib.dump(model, MODELS_DIR / f"{MODEL_FILE_STEM}_{date_str}.pkl", compress=3)
-    log.info(f"{MODEL_FILE_STEM}_{date_str}.pkl sauvegardé")
+    joblib.dump(model, MODELS_DIR / f"{MODEL_FILE_STEM}_{run_tag}.pkl", compress=3)
+    log.info(f"{MODEL_FILE_STEM}_{run_tag}.pkl sauvegardé")
 
     quantile_models = {}
     for alpha, suffix in [(0.1, "p10"), (0.9, "p90")]:
         log.info(f"Training quantile {suffix}...")
         m = XGBRegressor(objective="reg:quantileerror", quantile_alpha=alpha, **MODEL_PARAMS)
         m.fit(X_train, y_train, sample_weight=sample_weight)
-        joblib.dump(m, MODELS_DIR / f"{MODEL_FILE_STEM}_{suffix}_{date_str}.pkl", compress=3)
-        log.info(f"{MODEL_FILE_STEM}_{suffix}_{date_str}.pkl sauvegardé")
+        joblib.dump(m, MODELS_DIR / f"{MODEL_FILE_STEM}_{suffix}_{run_tag}.pkl", compress=3)
+        log.info(f"{MODEL_FILE_STEM}_{suffix}_{run_tag}.pkl sauvegardé")
         quantile_models[suffix] = m
     
     log.info("Calibration CQR...")
