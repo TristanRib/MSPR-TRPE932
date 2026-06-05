@@ -96,24 +96,24 @@ jobs:
 
       - name: Setup Monitoring Alert
         run: |
-          CHANNEL=$(gcloud monitoring channels list \
+          CHANNEL=$(gcloud beta monitoring channels list \
             --filter="displayName='Cloud Run Warnings Email'" \
             --format="value(name)" --limit=1)
           if [ -z "$CHANNEL" ]; then
-            CHANNEL=$(gcloud monitoring channels create \
+            CHANNEL=$(gcloud beta monitoring channels create \
               --display-name="Cloud Run Warnings Email" \
               --type=email \
               --channel-labels=email_address=${{ vars.ALERT_EMAIL }} \
               --format="value(name)" --quiet)
           fi
           POLICY_JSON=$(sed "s|CHANNEL_PLACEHOLDER|$CHANNEL|g" infra/alert_policy.json)
-          POLICY=$(gcloud alpha monitoring policies list \
+          POLICY=$(gcloud beta monitoring policies list \
             --filter="displayName='Cloud Run WARNING logs'" \
             --format="value(name)" --limit=1)
           if [ -z "$POLICY" ]; then
-            echo "$POLICY_JSON" | gcloud alpha monitoring policies create --policy-from-file=/dev/stdin --quiet
+            echo "$POLICY_JSON" | gcloud beta monitoring policies create --policy-from-file=/dev/stdin --quiet
           else
-            echo "$POLICY_JSON" | gcloud alpha monitoring policies update "$POLICY" --policy-from-file=/dev/stdin --quiet
+            echo "$POLICY_JSON" | gcloud beta monitoring policies update "$POLICY" --policy-from-file=/dev/stdin --quiet
           fi
 
       - name: Deploy Workflow ETL-Forecast
