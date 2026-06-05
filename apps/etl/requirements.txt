@@ -1,5 +1,6 @@
 python-dotenv
 requests==2.31.0
+google-cloud-bigquery
 pandas
 numpy
 scikit-learn

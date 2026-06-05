@@ -55,7 +55,7 @@ jobs:
             --region=${{ vars.REGION }} \
             --memory=2Gi \
             --cpu=1 \
-            --update-env-vars RAW_DIR=/app/gcs/raw \
+            --update-env-vars RAW_DIR=/app/gcs/raw,BQ_TABLE=${{ vars.PROJECT }}.mspr_energie.predictions \
             --quiet
 
       - name: Update train Job
@@ -93,6 +93,28 @@ jobs:
             --cpu-boost \
             --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models \
             --quiet
+
+      - name: Setup Monitoring Alert
+        run: |
+          CHANNEL=$(gcloud monitoring channels list \
+            --filter="displayName='Cloud Run Warnings Email'" \
+            --format="value(name)" --limit=1)
+          if [ -z "$CHANNEL" ]; then
+            CHANNEL=$(gcloud monitoring channels create \
+              --display-name="Cloud Run Warnings Email" \
+              --type=email \
+              --channel-labels=email_address=${{ vars.ALERT_EMAIL }} \
+              --format="value(name)" --quiet)
+          fi
+          POLICY_JSON=$(sed "s|CHANNEL_PLACEHOLDER|$CHANNEL|g" infra/alert_policy.json)
+          POLICY=$(gcloud alpha monitoring policies list \
+            --filter="displayName='Cloud Run WARNING logs'" \
+            --format="value(name)" --limit=1)
+          if [ -z "$POLICY" ]; then
+            echo "$POLICY_JSON" | gcloud alpha monitoring policies create --policy-from-file=/dev/stdin --quiet
+          else
+            echo "$POLICY_JSON" | gcloud alpha monitoring policies update "$POLICY" --policy-from-file=/dev/stdin --quiet
+          fi
 
       - name: Deploy Workflow ETL-Forecast
         run: |

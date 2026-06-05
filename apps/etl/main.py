@@ -8,11 +8,13 @@ if not (_here / "transform.py").exists():
     sys.path.insert(0, str(_here.parent.parent / "scripts"))
 
 import logging
+import os
 import time
 from datetime import date, timedelta, datetime
 from zoneinfo import ZoneInfo
 from io import StringIO
 
+import numpy as np
 import requests
 import pandas as pd
 
@@ -93,7 +95,7 @@ def fetch_weather_forecast() -> pd.DataFrame:
         "longitude":     2,
         "timezone":      "Europe/Paris",
         "hourly":        ",".join(_WEATHER_COLS),
-        "forecast_days": 2,
+        "forecast_days": 14,
     }
     def _fetch():
         resp = requests.get(_OPEN_METEO_FORECAST_URL, params=params, timeout=60)
@@ -284,6 +286,109 @@ def upsert_raw(new_df: pd.DataFrame):
     log.info(f"{added} nouvelles lignes ajoutées ({len(combined)} total)")
 
 
+# Fallback statique si l'historique BQ est insuffisant (< MIN_SLOTS_PER_MONTH slots/mois)
+_FALLBACK_RMSE_REF = {
+    1: 1922, 2: 1800, 3: 1500, 4: 1200, 5: 1000,
+    6:  900, 7:  759, 8:  759, 9:  900, 10: 1300,
+    11: 1600, 12: 1900,
+}
+_FALLBACK_BIAS_REF = {
+    1:  462, 2:  400, 3:  200, 4:   50, 5:  -50,
+    6: -150, 7: -193, 8: -193, 9: -100, 10:  50,
+    11: 250, 12: 400,
+}
+DRIFT_RMSE_MULTIPLIER  = 1.5    # alerte si RMSE > 1.5× la référence du mois
+DRIFT_BIAS_DELTA       = 400.0  # MW — écart vs biais attendu du mois
+MIN_SLOTS_PER_MONTH    = 200    # slots minimum pour considérer la référence BQ fiable
+
+
+def _check_prediction_drift():
+    bq_table = os.getenv("BQ_TABLE", "")
+    if not bq_table:
+        log.info("Dérive ignorée : BQ_TABLE non défini")
+        return
+    try:
+        from google.cloud import bigquery
+        client = bigquery.Client()
+
+        # Toutes les prédictions passées pour calculer les références dynamiques
+        all_query = f"""
+            SELECT predicted_at, AVG(prediction_mw) AS prediction_mw
+            FROM `{bq_table}`
+            WHERE predicted_at < CURRENT_TIMESTAMP()
+            GROUP BY predicted_at
+            ORDER BY predicted_at
+        """
+        all_pred_df = client.query(all_query).to_dataframe()
+        if all_pred_df.empty:
+            log.info("Dérive : aucune prédiction passée en BQ")
+            return
+
+        raw_csv = RAW_DIR / "raw_data.csv"
+        actual_df = pd.read_csv(
+            raw_csv, sep=";", encoding="utf-8-sig",
+            usecols=["Date et Heure", "Consommation (MW)"], low_memory=False,
+        )
+        actual_df["predicted_at"] = pd.to_datetime(actual_df["Date et Heure"], utc=True)
+        actual_df["actual_mw"] = pd.to_numeric(actual_df["Consommation (MW)"], errors="coerce")
+
+        all_pred_df["predicted_at"] = pd.to_datetime(all_pred_df["predicted_at"], utc=True)
+        all_merged = all_pred_df.merge(
+            actual_df[["predicted_at", "actual_mw"]], on="predicted_at", how="inner"
+        ).dropna(subset=["actual_mw"])
+
+        if len(all_merged) < 10:
+            log.info(f"Dérive : seulement {len(all_merged)} slots communs, skip")
+            return
+
+        # Références dynamiques par mois depuis l'historique BQ
+        all_merged["month"] = all_merged["predicted_at"].dt.month
+        all_merged["residual"] = all_merged["prediction_mw"] - all_merged["actual_mw"]
+        monthly_stats = all_merged.groupby("month")["residual"].agg(
+            rmse_ref=lambda r: float(np.sqrt((r ** 2).mean())),
+            bias_ref="mean",
+            count="count",
+        )
+
+        month = datetime.now(ZoneInfo("Europe/Paris")).month
+        if month in monthly_stats.index and monthly_stats.loc[month, "count"] >= MIN_SLOTS_PER_MONTH:
+            rmse_ref = float(monthly_stats.loc[month, "rmse_ref"])
+            bias_ref = float(monthly_stats.loc[month, "bias_ref"])
+            ref_source = f"BQ ({int(monthly_stats.loc[month, 'count'])} slots)"
+        else:
+            rmse_ref = _FALLBACK_RMSE_REF[month]
+            bias_ref = _FALLBACK_BIAS_REF[month]
+            ref_source = "fallback statique"
+
+        # Métriques sur les 7 derniers jours
+        recent = all_merged[
+            all_merged["predicted_at"] >= pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=7)
+        ]
+        if len(recent) < 10:
+            log.info(f"Dérive : seulement {len(recent)} slots récents, skip")
+            return
+
+        bias = float(recent["residual"].mean())
+        rmse = float(np.sqrt((recent["residual"] ** 2).mean()))
+        rmse_threshold = rmse_ref * DRIFT_RMSE_MULTIPLIER
+
+        log.info(
+            f"Dérive 7j (mois={month}, réf={ref_source}) :"
+            f" RMSE={rmse:.0f} MW (réf={rmse_ref:.0f}, seuil={rmse_threshold:.0f})"
+            f"  biais={bias:+.0f} MW (réf={bias_ref:+.0f})  ({len(recent)} slots)"
+        )
+
+        if rmse > rmse_threshold:
+            log.warning(f"DÉRIVE — RMSE {rmse:.0f} MW > {rmse_threshold:.0f} MW (1.5× réf mois {month})")
+        if abs(bias - bias_ref) > DRIFT_BIAS_DELTA:
+            log.warning(
+                f"DÉRIVE — biais {bias:+.0f} MW s'écarte de {bias - bias_ref:+.0f} MW"
+                f" vs attendu {bias_ref:+.0f} MW (seuil ±{DRIFT_BIAS_DELTA:.0f} MW)"
+            )
+    except Exception as e:
+        log.warning(f"Contrôle dérive échoué : {e}")
+
+
 def main():
     today = datetime.now(ZoneInfo("Europe/Paris")).date()
     log.info(f"--- ETL données du {today} ---")
@@ -319,6 +424,7 @@ def main():
         upsert_raw(merge_weather(energy, forecast) if forecast is not None else energy)
 
     update_datacard()
+    _check_prediction_drift()
 
     if forecast is not None:
         forecast.to_csv(RAW_DIR / "weather_forecast.csv")

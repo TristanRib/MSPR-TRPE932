@@ -37,7 +37,7 @@ def main():
 
     client = bigquery.Client()
     job_config = bigquery.LoadJobConfig(
-        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
     )
     client.load_table_from_json(rows, BQ_TABLE, job_config=job_config).result()
 

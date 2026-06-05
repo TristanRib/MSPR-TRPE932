@@ -140,11 +140,11 @@ def save_metrics_to_bq(metrics: dict):
 
 def main():
     X_train, X_calib, X_test, y_train, y_calib, y_test = load_data()
-    date_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
     MODELS_DIR.mkdir(exist_ok=True)
 
-    imputer = KNNImputer(n_neighbors=17)
-    imputer.fit(X_train.to_numpy())
+    imputer = KNNImputer(n_neighbors=17, weights="distance")
+    imputer.fit(X_train.iloc[-35040:].to_numpy())  # 2 dernières années (35040 slots 30-min)
     X_train = imputer.transform(X_train.to_numpy())
     X_calib = imputer.transform(X_calib.to_numpy())
     X_test  = imputer.transform(X_test.to_numpy())
