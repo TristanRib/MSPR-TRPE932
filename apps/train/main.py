@@ -3,8 +3,8 @@ import sys
 from pathlib import Path
 
 try:
-    import google.cloud.logging as _glog
-    _glog.Client().setup_logging()
+    from google.cloud.logging.handlers import StructuredLogHandler
+    logging.basicConfig(handlers=[StructuredLogHandler()], level=logging.INFO)
 except Exception:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
