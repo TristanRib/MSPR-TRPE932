@@ -4,6 +4,9 @@ import re
 from pathlib import Path
 from typing import cast
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import holidays
 import joblib
 import numpy as np

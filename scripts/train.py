@@ -3,6 +3,9 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv()
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
 
@@ -18,9 +21,13 @@ ROOT = Path(__file__).parent.parent
 PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", str(ROOT / "data")))
 MODELS_DIR    = Path(os.getenv("MODELS_DIR",    str(ROOT / "outputs")))
 
-RUN_NOISE_R2       = 0.005
-RUN_NOISE_MAPE     = 0.005
-RUN_NOISE_ACCURACY = 0.01
+RMSE_FLOOR    = 1600.0  # MW — seuil absolu (20% au-dessus de la baseline)
+R2_FLOOR      = 0.97    # seuil absolu
+MAPE_FLOOR    = 0.025   # seuil absolu (2.5%, baseline ~1.9%)
+RMSE_NOISE    = 30.0    # MW — tolérance vs meilleur historique
+R2_NOISE      = 0.002   # tolérance vs meilleur historique
+ACC_NOISE     = 0.002   # tolérance vs meilleur historique (±5% accuracy)
+MAPE_NOISE    = 0.001   # tolérance vs meilleur historique
 
 MODEL_NAME = "XGBoost"
 MODEL_PARAMS = dict(
@@ -53,7 +60,7 @@ def compute_metrics(y_true, y_pred) -> dict:
     }
 
 
-def _load_prev_best_from_bq() -> dict | None:
+def _load_best_from_bq() -> dict | None:
     bq_table = os.getenv("BQ_METRICS_TABLE", "")
     if not bq_table:
         return None
@@ -61,10 +68,10 @@ def _load_prev_best_from_bq() -> dict | None:
         from google.cloud import bigquery
         client = bigquery.Client()
         query = f"""
-            SELECT r2, mape, accuracy_5pct
+            SELECT r2, rmse, mape, accuracy_5pct
             FROM `{bq_table}`
-            WHERE run_at = (SELECT MAX(run_at) FROM `{bq_table}`)
-              AND model_name = best_model
+            WHERE model_name = '{MODEL_NAME}'
+              AND rmse = (SELECT MIN(rmse) FROM `{bq_table}` WHERE model_name = '{MODEL_NAME}')
             LIMIT 1
         """
         rows = list(client.query(query).result())
@@ -75,20 +82,33 @@ def _load_prev_best_from_bq() -> dict | None:
 
 
 def check_quality(metrics: dict):
-    prev = _load_prev_best_from_bq()
-    if prev is None:
+    # Niveau 1 — seuils absolus, toujours vérifiés
+    hard_errors = []
+    if metrics["RMSE"] > RMSE_FLOOR:
+        hard_errors.append(f"RMSE {metrics['RMSE']:.0f} MW > seuil absolu {RMSE_FLOOR:.0f} MW")
+    if metrics["R2"] < R2_FLOOR:
+        hard_errors.append(f"R² {metrics['R2']:.4f} < seuil absolu {R2_FLOOR}")
+    if metrics["MAPE"] > MAPE_FLOOR:
+        hard_errors.append(f"MAPE {metrics['MAPE']:.4f} > seuil absolu {MAPE_FLOOR}")
+    if hard_errors:
+        raise RuntimeError("Contrôle qualité — seuils absolus franchis :\n" + "\n".join(f"  - {e}" for e in hard_errors))
+
+    # Niveau 2 — régression vs meilleur historique
+    best = _load_best_from_bq()
+    if best is None:
+        log.info("check_quality : aucune baseline BQ, seuils absolus validés uniquement")
         return
-
-    errors = []
-    if metrics["R2"] < prev["r2"] - RUN_NOISE_R2:
-        errors.append(f"Régression R² : {metrics['R2']:.4f} < {prev['r2']:.4f} - {RUN_NOISE_R2}")
-    if metrics["MAPE"] > prev["mape"] + RUN_NOISE_MAPE:
-        errors.append(f"Régression MAPE : {metrics['MAPE']:.4f} > {prev['mape']:.4f} + {RUN_NOISE_MAPE}")
-    if metrics["Accuracy (±5%)"] < prev["accuracy_5pct"] - RUN_NOISE_ACCURACY:
-        errors.append(f"Régression Accuracy : {metrics['Accuracy (±5%)']:.4f} < {prev['accuracy_5pct']:.4f} - {RUN_NOISE_ACCURACY}")
-
-    if errors:
-        raise RuntimeError("Contrôle qualité échoué :\n" + "\n".join(f"  - {e}" for e in errors))
+    reg_errors = []
+    if metrics["RMSE"] > best["rmse"] + RMSE_NOISE:
+        reg_errors.append(f"RMSE {metrics['RMSE']:.0f} MW > meilleur {best['rmse']:.0f} + {RMSE_NOISE:.0f} MW")
+    if metrics["R2"] < best["r2"] - R2_NOISE:
+        reg_errors.append(f"R² {metrics['R2']:.4f} < meilleur {best['r2']:.4f} - {R2_NOISE}")
+    if metrics["Accuracy (±5%)"] < best["accuracy_5pct"] - ACC_NOISE:
+        reg_errors.append(f"Acc±5% {metrics['Accuracy (±5%)']:.4f} < meilleur {best['accuracy_5pct']:.4f} - {ACC_NOISE}")
+    if metrics["MAPE"] > best["mape"] + MAPE_NOISE:
+        reg_errors.append(f"MAPE {metrics['MAPE']:.4f} > meilleur {best['mape']:.4f} + {MAPE_NOISE}")
+    if reg_errors:
+        raise RuntimeError("Contrôle qualité — régression vs meilleur modèle :\n" + "\n".join(f"  - {e}" for e in reg_errors))
 
 
 def save_metrics_to_bq(metrics: dict):
@@ -123,15 +143,13 @@ def main():
     date_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     MODELS_DIR.mkdir(exist_ok=True)
 
-    lag_cols = ["conso_h24", "conso_h48", "conso_h168", "temp_h24", "temp_h48", "temp_h168"]
-    complete = X_train[lag_cols].notna().all(axis=1)
-    imputer  = KNNImputer(n_neighbors=17)
-    imputer.fit(X_train.loc[complete].to_numpy())
+    imputer = KNNImputer(n_neighbors=17)
+    imputer.fit(X_train.to_numpy())
     X_train = imputer.transform(X_train.to_numpy())
     X_calib = imputer.transform(X_calib.to_numpy())
     X_test  = imputer.transform(X_test.to_numpy())
     joblib.dump(imputer, MODELS_DIR / "imputer.pkl", compress=3)
-    log.info("imputer.pkl sauvegardé (fitté sur X_train uniquement)")
+    log.info("imputer.pkl sauvegardé")
 
     sample_weight = np.exp(np.linspace(0, 2, len(X_train)))
 
@@ -141,7 +159,7 @@ def main():
     metrics = compute_metrics(y_test, model.predict(X_test))
     log.info(f"R²={metrics['R2']:.4f}  RMSE={metrics['RMSE']:.1f}  MAPE={metrics['MAPE']:.4f}  Acc±5%={metrics['Accuracy (±5%)']:.4f}")
 
-    # check_quality(metrics)
+    check_quality(metrics)
 
     joblib.dump(model, MODELS_DIR / f"model_xgboost_{date_str}.pkl", compress=3)
     log.info(f"model_xgboost_{date_str}.pkl sauvegardé")
@@ -154,7 +172,7 @@ def main():
         joblib.dump(m, MODELS_DIR / f"model_xgboost_{suffix}_{date_str}.pkl", compress=3)
         log.info(f"model_xgboost_{suffix}_{date_str}.pkl sauvegardé")
         quantile_models[suffix] = m
-
+    
     log.info("Calibration CQR...")
     p10_cal = quantile_models["p10"].predict(X_calib)
     p90_cal = quantile_models["p90"].predict(X_calib)

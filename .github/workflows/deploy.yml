@@ -45,7 +45,7 @@ jobs:
       - name: Build & Push forecast
         run: |
           IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/forecast:latest
-          docker build -f apps/forecast/Dockerfile -t $IMAGE apps/forecast/
+          docker build -f apps/forecast/Dockerfile -t $IMAGE .
           docker push $IMAGE
 
       - name: Update ETL Job
