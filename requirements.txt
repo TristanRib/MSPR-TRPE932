@@ -1,6 +1,9 @@
 jupyter
 python-dotenv
 
+pytest
+httpx
+
 pandas
 numpy
 
