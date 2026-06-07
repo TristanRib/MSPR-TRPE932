@@ -144,6 +144,37 @@ def save_metrics_to_bq(metrics: dict):
         log.warning(f"Push BigQuery échoué : {e}")
 
 
+def save_feature_distributions(X_train_df: pd.DataFrame):
+    angle  = np.arctan2(X_train_df["month_sin"].values, X_train_df["month_cos"].values)
+    months = np.round(angle * 12 / (2 * np.pi)).astype(int) % 12
+    months = np.where(months == 0, 12, months)
+
+    distributions: dict = {}
+    for m in range(1, 13):
+        mask = months == m
+        if mask.sum() < 100:
+            continue
+        month_df = X_train_df[mask]
+        distributions[m] = {}
+        for col in X_train_df.columns:
+            vals = month_df[col].dropna().values
+            if len(vals) < 2:
+                continue
+            bins = np.unique(np.percentile(vals, np.linspace(0, 100, 11)))
+            if len(bins) < 2:
+                continue
+            bins = bins.copy()
+            bins[0]  -= 1e-8
+            bins[-1] += 1e-8
+            counts, _ = np.histogram(vals, bins=bins)
+            ref_pct = counts / counts.sum()
+            ref_pct = np.where(ref_pct == 0, 1e-4, ref_pct).tolist()
+            distributions[m][col] = {"bins": bins.tolist(), "ref_pct": ref_pct}
+
+    joblib.dump(distributions, MODELS_DIR / "feature_distributions.pkl")
+    log.info(f"feature_distributions.pkl sauvegardé ({len(distributions)} mois)")
+
+
 def _run_tag(date_str: str) -> str:
     existing = list(MODELS_DIR.glob(f"{MODEL_FILE_STEM}_{date_str}_*.pkl"))
     main_runs = [f for f in existing if not re.search(r"_(p10|p90)_", f.name)]
@@ -159,6 +190,8 @@ def main():
     MODELS_DIR.mkdir(exist_ok=True)
     run_tag = _run_tag(date_str)
     log.info(f"Run tag : {run_tag}")
+
+    save_feature_distributions(X_train)
 
     imputer = KNNImputer(n_neighbors=17, weights="distance")
     imputer.fit(X_train.iloc[-35040:].to_numpy())  # 2 dernières années (35040 slots 30-min)

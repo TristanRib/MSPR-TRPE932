@@ -302,6 +302,86 @@ DRIFT_BIAS_DELTA       = 400.0  # MW — écart vs biais attendu du mois
 MIN_SLOTS_PER_MONTH    = 200    # slots minimum pour considérer la référence BQ fiable
 
 
+_PSI_WEATHER_FEATURES = {
+    "temperature_2m", "apparent_temperature", "precipitation", "cloud_cover",
+    "heating_apparent", "cooling_apparent",
+}
+
+
+def _check_feature_psi():
+    models_dir = os.getenv("MODELS_DIR", "")
+    if not models_dir:
+        log.info("PSI ignoré : MODELS_DIR non défini")
+        return
+
+    dist_path = Path(models_dir) / "feature_distributions.pkl"
+    if not dist_path.exists():
+        log.info("PSI ignoré : feature_distributions.pkl manquant")
+        return
+
+    try:
+        import joblib
+        distributions = joblib.load(dist_path)
+
+        # raw_data.csv est mis à jour à chaque run ETL — source fraîche
+        raw_csv = RAW_DIR / "raw_data.csv"
+        df = pd.read_csv(
+            raw_csv, sep=";", encoding="utf-8-sig",
+            usecols=["Date et Heure", "temperature_2m", "apparent_temperature",
+                     "precipitation", "cloud_cover"],
+            low_memory=False,
+        )
+        df = df.dropna(subset=["temperature_2m"])
+        df["heating_apparent"] = (17 - df["apparent_temperature"]).clip(lower=0)
+        df["cooling_apparent"] = (df["apparent_temperature"] - 21).clip(lower=0)
+
+        recent = df.tail(336)  # ~7 jours à 30-min
+        month  = pd.to_datetime(recent["Date et Heure"], utc=True).dt.month.mode()[0]
+
+        if month not in distributions:
+            log.info(f"PSI : pas de référence pour le mois {month}")
+            return
+
+        ref = distributions[month]
+        drift, watch, stable = [], [], []
+
+        for col in _PSI_WEATHER_FEATURES:
+            if col not in ref or col not in recent.columns:
+                continue
+            vals = recent[col].dropna().values
+            if len(vals) < 10:
+                continue
+            bins    = np.array(ref[col]["bins"])
+            ref_pct = np.array(ref[col]["ref_pct"])
+            counts, _ = np.histogram(vals, bins=bins)
+            if counts.sum() == 0:
+                continue
+            cur_pct = counts / counts.sum()
+            cur_pct = np.where(cur_pct == 0, 1e-4, cur_pct)
+            psi = float(np.sum((cur_pct - ref_pct) * np.log(cur_pct / ref_pct)))
+
+            if psi > 0.25:
+                drift.append((col, psi))
+            elif psi > 0.1:
+                watch.append((col, psi))
+            else:
+                stable.append(col)
+
+        if drift:
+            drift_str = "  ".join(f"{col}={psi:.2f}" for col, psi in sorted(drift, key=lambda x: -x[1]))
+            log.warning(f"PSI — dérive météo (mois={month}) : {drift_str}")
+        if watch:
+            watch_str = "  ".join(f"{col}={psi:.2f}" for col, psi in sorted(watch, key=lambda x: -x[1]))
+            log.info(f"PSI — météo à surveiller (mois={month}) : {watch_str}")
+        log.info(
+            f"PSI mois {month} : {len(drift)} en dérive (>0.25)"
+            f", {len(watch)} à surveiller (0.1-0.25)"
+            f", {len(stable)} stables (<0.1)"
+        )
+    except Exception as e:
+        log.warning(f"Contrôle PSI échoué : {e}")
+
+
 def _check_prediction_drift():
     bq_table = os.getenv("BQ_TABLE", "")
     if not bq_table:
@@ -424,6 +504,7 @@ def main():
         upsert_raw(merge_weather(energy, forecast) if forecast is not None else energy)
 
     update_datacard()
+    _check_feature_psi()
     _check_prediction_drift()
 
     if forecast is not None:

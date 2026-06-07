@@ -67,7 +67,7 @@ jobs:
             --region=${{ vars.REGION }} \
             --memory=2Gi \
             --cpu=1 \
-            --update-env-vars RAW_DIR=/app/gcs/raw,BQ_TABLE=${{ vars.PROJECT }}.mspr_energie.predictions \
+            --update-env-vars RAW_DIR=/app/gcs/raw,BQ_TABLE=${{ vars.PROJECT }}.mspr_energie.predictions,MODELS_DIR=/app/gcs/models \
             --quiet
 
       - name: Update train Job
