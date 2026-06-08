@@ -1,57 +1,56 @@
+import logging
 import os
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).parent.parent
+from dotenv import load_dotenv
+load_dotenv()
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+log = logging.getLogger(__name__)
 
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.kernel_approximation import RBFSampler
-from sklearn.linear_model import Ridge
+from sklearn.impute import KNNImputer
 from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.tree import DecisionTreeRegressor
 from xgboost import XGBRegressor
-from lightgbm import LGBMRegressor
+
+ROOT = Path(__file__).parent.parent
 
 PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", str(ROOT / "data")))
 MODELS_DIR    = Path(os.getenv("MODELS_DIR",    str(ROOT / "outputs")))
+
+RMSE_FLOOR    = 1600.0  # MW — seuil absolu (20% au-dessus de la baseline)
+R2_FLOOR      = 0.97    # seuil absolu
+MAPE_FLOOR    = 0.025   # seuil absolu (2.5%, baseline ~1.9%)
+RMSE_NOISE    = 30.0    # MW — tolérance vs meilleur historique
+R2_NOISE      = 0.002   # tolérance vs meilleur historique
+ACC_NOISE     = 0.002   # tolérance vs meilleur historique (±5% accuracy)
+MAPE_NOISE    = 0.001   # tolérance vs meilleur historique
+
+MODEL_NAME       = "XGBoost"
+MODEL_FILE_STEM  = "model_xgboost"
+MODEL_PARAMS = dict(
+    n_estimators=978, learning_rate=0.046, max_depth=6,
+    subsample=0.75, colsample_bytree=0.93, min_child_weight=5,
+    gamma=4.0, reg_alpha=0.65, reg_lambda=2.65,
+    random_state=42, n_jobs=-1,
+)
 
 
 def load_data():
     df = pd.read_csv(PROCESSED_DIR / "transformed_data.csv")
     X = df.drop(columns=["Consommation"])
     y = df["Consommation"]
-    return train_test_split(X, y, test_size=0.2, random_state=42)
-
-
-def build_models() -> dict:
-    return {
-        "RBF": Pipeline([
-            ("scaler", StandardScaler()),
-            ("rbf", RBFSampler(gamma=0.1, n_components=500)),
-            ("ridge", Ridge()),
-        ]),
-        "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1),
-        "KNN": Pipeline([
-            ("scaler", StandardScaler()),
-            ("model", KNeighborsRegressor(n_neighbors=5)),
-        ]),
-        "Decision Tree": DecisionTreeRegressor(random_state=42),
-        "XGBoost": XGBRegressor(
-            n_estimators=300, learning_rate=0.05, max_depth=6,
-            subsample=0.8, colsample_bytree=0.8, random_state=42, n_jobs=-1,
-        ),
-        "LightGBM": LGBMRegressor(
-            n_estimators=300, learning_rate=0.05, max_depth=-1, num_leaves=31,
-            subsample=0.8, colsample_bytree=0.8, random_state=42, n_jobs=-1,
-        ),
-    }
+    n = len(df)
+    split_tr  = int(n * 0.70)
+    split_cal = int(n * 0.80)
+    return (
+        X.iloc[:split_tr], X.iloc[split_tr:split_cal], X.iloc[split_cal:],
+        y.iloc[:split_tr], y.iloc[split_tr:split_cal], y.iloc[split_cal:],
+    )
 
 
 def compute_metrics(y_true, y_pred) -> dict:
@@ -63,33 +62,178 @@ def compute_metrics(y_true, y_pred) -> dict:
     }
 
 
-def save_model(model, name: str):
-    MODELS_DIR.mkdir(exist_ok=True)
-    base = f"mspr_edf_{name.lower().replace(' ', '_')}"
-    pattern = re.compile(rf"{re.escape(base)}_(\d+)\.pkl")
-    numbers = [int(m.group(1)) for f in os.listdir(MODELS_DIR) if (m := pattern.match(f))]
-    next_num = max(numbers) + 1 if numbers else 1
-    path = MODELS_DIR / f"{base}_{next_num:02d}.pkl"
-    joblib.dump(model, path, compress=3)
-    print(f"Modèle sauvegardé : {path.name}")
+def _load_best_from_bq() -> dict | None:
+    bq_table = os.getenv("BQ_METRICS_TABLE", "")
+    if not bq_table:
+        return None
+    try:
+        from google.cloud import bigquery
+        client = bigquery.Client()
+        query = f"""
+            SELECT r2, rmse, mape, accuracy_5pct
+            FROM `{bq_table}`
+            WHERE model_name = '{MODEL_NAME}'
+              AND rmse = (SELECT MIN(rmse) FROM `{bq_table}` WHERE model_name = '{MODEL_NAME}')
+            LIMIT 1
+        """
+        rows = list(client.query(query).result())
+        return dict(rows[0]) if rows else None
+    except Exception as e:
+        log.warning(f"Lecture BQ pour check_quality échouée : {e}")
+        return None
+
+
+def check_quality(metrics: dict) -> bool:
+    # Niveau 1 — seuils absolus, toujours vérifiés
+    hard_errors = []
+    if metrics["RMSE"] > RMSE_FLOOR:
+        hard_errors.append(f"RMSE {metrics['RMSE']:.0f} MW > seuil absolu {RMSE_FLOOR:.0f} MW")
+    if metrics["R2"] < R2_FLOOR:
+        hard_errors.append(f"R² {metrics['R2']:.4f} < seuil absolu {R2_FLOOR}")
+    if metrics["MAPE"] > MAPE_FLOOR:
+        hard_errors.append(f"MAPE {metrics['MAPE']:.4f} > seuil absolu {MAPE_FLOOR}")
+    if hard_errors:
+        log.warning("Modèle non retenu — seuils absolus franchis :\n" + "\n".join(f"  - {e}" for e in hard_errors))
+        return False
+
+    # Niveau 2 — régression vs meilleur historique
+    best = _load_best_from_bq()
+    if best is None:
+        log.info("Modèle retenu — aucune baseline BQ, seuils absolus validés uniquement")
+        return True
+    reg_errors = []
+    if metrics["RMSE"] > best["rmse"] + RMSE_NOISE:
+        reg_errors.append(f"RMSE {metrics['RMSE']:.0f} MW > meilleur {best['rmse']:.0f} + {RMSE_NOISE:.0f} MW")
+    if metrics["R2"] < best["r2"] - R2_NOISE:
+        reg_errors.append(f"R² {metrics['R2']:.4f} < meilleur {best['r2']:.4f} - {R2_NOISE}")
+    if metrics["Accuracy (±5%)"] < best["accuracy_5pct"] - ACC_NOISE:
+        reg_errors.append(f"Acc±5% {metrics['Accuracy (±5%)']:.4f} < meilleur {best['accuracy_5pct']:.4f} - {ACC_NOISE}")
+    if metrics["MAPE"] > best["mape"] + MAPE_NOISE:
+        reg_errors.append(f"MAPE {metrics['MAPE']:.4f} > meilleur {best['mape']:.4f} + {MAPE_NOISE}")
+    if reg_errors:
+        log.warning("Modèle non retenu — régression vs meilleur modèle :\n" + "\n".join(f"  - {e}" for e in reg_errors))
+        return False
+    log.info("Modèle retenu — contrôle qualité OK")
+    return True
+
+
+def save_metrics_to_bq(metrics: dict):
+    bq_table = os.getenv("BQ_METRICS_TABLE", "")
+    if not bq_table:
+        log.warning("BQ_METRICS_TABLE non défini, push BigQuery ignoré")
+        return
+    try:
+        from google.cloud import bigquery
+
+        rows = [{
+            "run_at":        datetime.now(timezone.utc).isoformat(),
+            "best_model":    MODEL_NAME,
+            "model_name":    MODEL_NAME,
+            "r2":            metrics["R2"],
+            "rmse":          metrics["RMSE"],
+            "mape":          metrics["MAPE"],
+            "accuracy_5pct": metrics["Accuracy (±5%)"],
+        }]
+        client = bigquery.Client()
+        errors = client.insert_rows_json(bq_table, rows)
+        if errors:
+            log.warning(f"BigQuery insert errors : {errors}")
+        else:
+            log.info(f"Métriques pushées vers BigQuery")
+    except Exception as e:
+        log.warning(f"Push BigQuery échoué : {e}")
+
+
+def save_feature_distributions(X_train_df: pd.DataFrame):
+    angle  = np.arctan2(X_train_df["month_sin"].values, X_train_df["month_cos"].values)
+    months = np.round(angle * 12 / (2 * np.pi)).astype(int) % 12
+    months = np.where(months == 0, 12, months)
+
+    distributions: dict = {}
+    for m in range(1, 13):
+        mask = months == m
+        if mask.sum() < 100:
+            continue
+        month_df = X_train_df[mask]
+        distributions[m] = {}
+        for col in X_train_df.columns:
+            vals = month_df[col].dropna().values
+            if len(vals) < 2:
+                continue
+            bins = np.unique(np.percentile(vals, np.linspace(0, 100, 11)))
+            if len(bins) < 2:
+                continue
+            bins = bins.copy()
+            bins[0]  -= 1e-8
+            bins[-1] += 1e-8
+            counts, _ = np.histogram(vals, bins=bins)
+            ref_pct = counts / counts.sum()
+            ref_pct = np.where(ref_pct == 0, 1e-4, ref_pct).tolist()
+            distributions[m][col] = {"bins": bins.tolist(), "ref_pct": ref_pct}
+
+    joblib.dump(distributions, MODELS_DIR / "feature_distributions.pkl")
+    log.info(f"feature_distributions.pkl sauvegardé ({len(distributions)} mois)")
+
+
+def _run_tag(date_str: str) -> str:
+    existing = list(MODELS_DIR.glob(f"{MODEL_FILE_STEM}_{date_str}_*.pkl"))
+    main_runs = [f for f in existing if not re.search(r"_(p10|p90)_", f.name)]
+    if not main_runs:
+        return f"{date_str}_1"
+    counters = [int(m.group(1)) for f in main_runs if (m := re.search(rf"_{date_str}_(\d+)\.pkl$", f.name))]
+    return f"{date_str}_{max(counters) + 1}" if counters else f"{date_str}_1"
 
 
 def main():
-    X_train, X_test, y_train, y_test = load_data()
-    models = build_models()
-    results = []
+    X_train, X_calib, X_test, y_train, y_calib, y_test = load_data()
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+    MODELS_DIR.mkdir(exist_ok=True)
+    run_tag = _run_tag(date_str)
+    log.info(f"Run tag : {run_tag}")
 
-    for name, model in models.items():
-        print(f"Training {name}...")
-        model.fit(X_train, y_train)
-        metrics = compute_metrics(y_test, model.predict(X_test))
-        results.append({"Model": name, **metrics})
+    save_feature_distributions(X_train)
 
-    results_df = pd.DataFrame(results).sort_values("R2", ascending=False)
-    print("\n" + results_df.to_string(index=False))
+    imputer = KNNImputer(n_neighbors=17, weights="distance")
+    imputer.fit(X_train.iloc[-35040:].to_numpy())  # 2 dernières années (35040 slots 30-min)
+    X_train = imputer.transform(X_train.to_numpy())
+    X_calib = imputer.transform(X_calib.to_numpy())
+    X_test  = imputer.transform(X_test.to_numpy())
+    joblib.dump(imputer, MODELS_DIR / "imputer.pkl", compress=3)
+    log.info("imputer.pkl sauvegardé")
 
-    best_name = results_df.iloc[0]["Model"]
-    save_model(models[best_name], best_name)
+    sample_weight = np.exp(np.linspace(0, 2, len(X_train)))
+
+    log.info(f"Training {MODEL_NAME} (MSE)...")
+    model = XGBRegressor(objective="reg:squarederror", **MODEL_PARAMS)
+    model.fit(X_train, y_train, sample_weight=sample_weight)
+    metrics = compute_metrics(y_test, model.predict(X_test))
+    log.info(f"R²={metrics['R2']:.4f}  RMSE={metrics['RMSE']:.1f}  MAPE={metrics['MAPE']:.4f}  Acc±5%={metrics['Accuracy (±5%)']:.4f}")
+
+    if not check_quality(metrics):
+        log.info("Ancien modèle conservé.")
+        return
+
+    joblib.dump(model, MODELS_DIR / f"{MODEL_FILE_STEM}_{run_tag}.pkl", compress=3)
+    log.info(f"{MODEL_FILE_STEM}_{run_tag}.pkl sauvegardé")
+
+    quantile_models = {}
+    for alpha, suffix in [(0.1, "p10"), (0.9, "p90")]:
+        log.info(f"Training quantile {suffix}...")
+        m = XGBRegressor(objective="reg:quantileerror", quantile_alpha=alpha, **MODEL_PARAMS)
+        m.fit(X_train, y_train, sample_weight=sample_weight)
+        joblib.dump(m, MODELS_DIR / f"{MODEL_FILE_STEM}_{suffix}_{run_tag}.pkl", compress=3)
+        log.info(f"{MODEL_FILE_STEM}_{suffix}_{run_tag}.pkl sauvegardé")
+        quantile_models[suffix] = m
+    
+    log.info("Calibration CQR...")
+    p10_cal = quantile_models["p10"].predict(X_calib)
+    p90_cal = quantile_models["p90"].predict(X_calib)
+    scores  = np.maximum(p10_cal - y_calib.values, y_calib.values - p90_cal)
+    q       = float(np.quantile(scores, 0.80))
+    joblib.dump(q, MODELS_DIR / "cqr_correction.pkl")
+    log.info(f"CQR q={q:.1f} MW sauvegardé")
+
+    save_metrics_to_bq(metrics)
 
 
 if __name__ == "__main__":

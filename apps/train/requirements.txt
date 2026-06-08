@@ -1,0 +1,10 @@
+python-dotenv
+pandas
+numpy
+scikit-learn
+joblib
+xgboost
+lightgbm
+google-cloud-bigquery
+holidays
+google-cloud-logging

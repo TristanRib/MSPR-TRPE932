@@ -1,0 +1,11 @@
+python-dotenv
+requests==2.31.0
+google-cloud-bigquery
+db-dtypes
+pandas
+numpy
+scikit-learn
+joblib
+pyyaml
+holidays
+google-cloud-logging

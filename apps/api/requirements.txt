@@ -1,0 +1,10 @@
+python-dotenv
+fastapi
+uvicorn[standard]
+pandas
+joblib
+scikit-learn
+xgboost
+lightgbm
+holidays
+google-cloud-logging

@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -5,16 +6,19 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
+log = logging.getLogger(__name__)
+
 ROOT     = Path(__file__).parent.parent
 RAW_DIR  = Path(os.getenv("RAW_DIR", str(ROOT / "data")))
-RAW_CSV  = RAW_DIR / "eco2mix-national-cons-def.csv"
+RAW_CSV  = RAW_DIR / "raw_data.csv"
 CARD_OUT = RAW_DIR / "raw_data.yaml"
 
 DESCRIPTIONS = {
     "Périmètre":                          "France",
     "Nature":                             "Données temps réel / Données consolidées / Données définitives",
     "Date":                               "Date du jour (jj/mm/aaaa)",
-    "Heure":                              "Point horaire par pas de 15 minutes (hh:mm)",
+    "Heure":                              "Point horaire par pas de 30 minutes (hh:mm)",
     "Date et Heure":                      "Horodatage ISO 8601",
     "Consommation (MW)":                  "Consommation en MW",
     "Prévision J-1 (MW)":                "Prévision J-1 de consommation en MW",
@@ -48,6 +52,10 @@ DESCRIPTIONS = {
     "Bioénergies - Déchets (MW)":        "Détail technologie déchets — bioénergies",
     "Bioénergies - Biomasse (MW)":       "Détail technologie biomasse — bioénergies",
     "Bioénergies - Biogaz (MW)":         "Détail technologie biogaz — bioénergies",
+    "temperature_2m":                    "Température à 2m du sol en °C (Open-Meteo, lat=46, lon=2)",
+    "apparent_temperature":              "Température ressentie à 2m en °C (Open-Meteo)",
+    "precipitation":                     "Précipitations en mm (Open-Meteo)",
+    "cloud_cover":                       "Couverture nuageuse totale en % (Open-Meteo)",
 }
 
 
@@ -98,11 +106,30 @@ def generate(csv_path: Path = RAW_CSV, out_path: Path = CARD_OUT):
         }
 
     card = {
-        "name":    "eCO2mix_RTE_Annuel-Definitif",
+        "name":    "mspr-edf-raw",
         "version": "1.0",
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         "domain":  "energy",
         "period":  period,
+        "sources": [
+            {
+                "name":        "eCO2mix RTE",
+                "provider":    "Réseau de Transport d'Electricité (RTE)",
+                "url":         "https://odre.opendatasoft.com/explore/dataset/eco2mix-national-tr",
+                "license":     "Open License v2.0 (Etalab)",
+                "granularity": "30 minutes",
+                "columns":     [c for c in df.columns if c not in ("temperature_2m", "apparent_temperature", "precipitation", "cloud_cover")],
+            },
+            {
+                "name":        "Open-Meteo Historical Weather",
+                "provider":    "Open-Meteo",
+                "url":         "https://open-meteo.com",
+                "license":     "CC BY 4.0",
+                "granularity": "1 heure (rééchantillonné 30 min)",
+                "location":    {"latitude": 46, "longitude": 2},
+                "columns":     ["temperature_2m", "apparent_temperature", "precipitation", "cloud_cover"],
+            },
+        ],
         "data": {
             "instance_count": n,
             "feature_count":  len(df.columns),
@@ -113,7 +140,7 @@ def generate(csv_path: Path = RAW_CSV, out_path: Path = CARD_OUT):
     with open(out_path, "w", encoding="utf-8") as f:
         yaml.dump(card, f, allow_unicode=True, sort_keys=False)
 
-    print(f"Datacard mise à jour : {n} lignes, période {period}")
+    log.info(f"Datacard mise à jour : {n} lignes, période {period}")
 
 
 if __name__ == "__main__":

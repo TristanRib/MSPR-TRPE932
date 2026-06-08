@@ -3,6 +3,7 @@ name: Build & Push
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build-push:
@@ -13,6 +14,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Run tests
+        run: |
+          pip install -r requirements.txt
+          pip install fastapi uvicorn httpx google-cloud-logging holidays
+          python -m pytest tests/ -v --tb=short
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -26,25 +39,100 @@ jobs:
       - name: Build & Push API
         run: |
           IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest
-          docker build -f api/Dockerfile -t $IMAGE .
+          docker build -f apps/api/Dockerfile -t $IMAGE .
           docker push $IMAGE
 
       - name: Build & Push ETL
         run: |
           IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/etl:latest
-          docker build -f etl/Dockerfile -t $IMAGE .
+          docker build -f apps/etl/Dockerfile -t $IMAGE .
           docker push $IMAGE
 
-      - name: Deploy API
+      - name: Build & Push train
         run: |
-          gcloud run deploy api \
-            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest \
-            --region=${{ vars.REGION }} \
-            --quiet
+          IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/train:latest
+          docker build -f apps/train/Dockerfile -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Build & Push forecast
+        run: |
+          IMAGE=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/forecast:latest
+          docker build -f apps/forecast/Dockerfile -t $IMAGE .
+          docker push $IMAGE
 
       - name: Update ETL Job
         run: |
           gcloud run jobs update etl-job \
             --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/etl:latest \
             --region=${{ vars.REGION }} \
+            --memory=2Gi \
+            --cpu=1 \
+            --update-env-vars RAW_DIR=/app/gcs/raw,BQ_TABLE=${{ vars.PROJECT }}.mspr_energie.predictions,MODELS_DIR=/app/gcs/models \
+            --quiet
+
+      - name: Update train Job
+        run: |
+          gcloud run jobs update train-job \
+            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/train:latest \
+            --region=${{ vars.REGION }} \
+            --memory=8Gi \
+            --cpu=2 \
+            --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models,PROCESSED_DIR=/app/gcs/processed,BQ_METRICS_TABLE=${{ vars.PROJECT }}.mspr_energie.model_runs \
+            --quiet
+
+      - name: Update forecast Job
+        run: |
+          gcloud run jobs update forecast \
+            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/forecast:latest \
+            --region=${{ vars.REGION }} \
+            --memory=512Mi \
+            --cpu=1 \
+            --task-timeout=180 \
+            --set-env-vars API_URL=https://api-s43aq3mwuq-ew.a.run.app,BQ_TABLE=${{ vars.PROJECT }}.mspr_energie.predictions \
+            --quiet
+
+      - name: Deploy API
+        run: |
+          gcloud run deploy api \
+            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT }}/${{ vars.REPO }}/api:latest \
+            --region=${{ vars.REGION }} \
+            --concurrency=1 \
+            --min-instances=1 \
+            --max-instances=10 \
+            --memory=2Gi \
+            --cpu=1 \
+            --timeout=180 \
+            --cpu-boost \
+            --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models \
+            --quiet
+
+      - name: Setup Monitoring Alert
+        if: ${{ vars.ALERT_EMAIL != '' }}
+        run: |
+          CHANNEL=$(gcloud beta monitoring channels list \
+            --filter='display_name="Cloud Run Warnings Email"' \
+            --format="value(name)" --limit=1)
+          if [ -z "$CHANNEL" ]; then
+            CHANNEL=$(gcloud beta monitoring channels create \
+              --display-name="Cloud Run Warnings Email" \
+              --type=email \
+              --channel-labels=email_address=${{ vars.ALERT_EMAIL }} \
+              --format="value(name)" --quiet)
+          fi
+          POLICY_JSON=$(sed "s|CHANNEL_PLACEHOLDER|$CHANNEL|g" infra/alert_policy.json)
+          POLICY=$(gcloud beta monitoring policies list \
+            --filter='display_name="Cloud Run WARNING logs"' \
+            --format="value(name)" --limit=1)
+          if [ -z "$POLICY" ]; then
+            echo "$POLICY_JSON" | gcloud beta monitoring policies create --policy-from-file=/dev/stdin --quiet
+          else
+            echo "$POLICY_JSON" | gcloud beta monitoring policies update "$POLICY" --policy-from-file=/dev/stdin --quiet
+          fi
+
+      - name: Deploy Workflow ETL-Forecast
+        run: |
+          gcloud workflows deploy etl-forecast \
+            --source=apps/workflows/etl_forecast.yaml \
+            --location=${{ vars.REGION }} \
+            --service-account=1087457673688-compute@developer.gserviceaccount.com \
             --quiet
