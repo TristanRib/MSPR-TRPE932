@@ -16,6 +16,7 @@ def _load_forecast(monkeypatch):
     """Charge le module forecast avec les variables d'env obligatoires."""
     monkeypatch.setenv("API_URL",  "http://fake-api")
     monkeypatch.setenv("BQ_TABLE", "fake.dataset.table")
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", MagicMock())
     spec = importlib.util.spec_from_file_location("forecast_main", _FORECAST_PATH)
     mod  = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -24,7 +25,7 @@ def _load_forecast(monkeypatch):
 
 def _fake_preds(n: int = 48, p10: int = 39000, p90: int = 41000) -> list:
     return [
-        {"datetime":       f"2026-06-01T{i:02d}:00:00+00:00",
+        {"datetime":       f"2026-06-{1 + i // 24:02d}T{i % 24:02d}:00:00+00:00",
          "prediction_mw":  40000,
          "prediction_p10": p10,
          "prediction_p90": p90}
