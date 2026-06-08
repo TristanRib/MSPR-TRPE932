@@ -1,16 +1,13 @@
-name: Build & Push
+name: CI / CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 jobs:
-  build-push:
+  test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +23,17 @@ jobs:
           pip install -r requirements.txt
           pip install fastapi uvicorn httpx google-cloud-logging holidays
           python -m pytest tests/ -v --tb=short
+
+  build-push:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2

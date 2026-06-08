@@ -86,24 +86,29 @@ def actuals(test_date):
     return df[(df["ts"] >= start) & (df["ts"] < end)].dropna(subset=["mw"]).set_index("ts")["mw"]
 
 
+@pytest.fixture(scope="module")
+def predict_response(client_real):
+    r = client_real.get("/predict")
+    assert r.status_code == 200
+    return r.json()
+
+
 class TestPredict:
     """Route /predict — 48 slots suivants calculés sur données et modèles réels."""
 
-    def test_retourne_48_slots(self, client_real):
-        r = client_real.get("/predict")
-        assert r.status_code == 200
-        assert len(r.json()) == 48
+    def test_retourne_48_slots(self, predict_response):
+        assert len(predict_response) == 48
 
-    def test_structure_slot(self, client_real):
-        slot = client_real.get("/predict").json()[0]
+    def test_structure_slot(self, predict_response):
+        slot = predict_response[0]
         assert {"datetime", "prediction_mw", "prediction_p10", "prediction_p90"} <= slot.keys()
 
-    def test_valeurs_realistes(self, client_real):
-        for slot in client_real.get("/predict").json():
+    def test_valeurs_realistes(self, predict_response):
+        for slot in predict_response:
             assert 20_000 <= slot["prediction_mw"] <= 120_000
 
-    def test_arrondi_25mw(self, client_real):
-        for slot in client_real.get("/predict").json():
+    def test_arrondi_25mw(self, predict_response):
+        for slot in predict_response:
             assert slot["prediction_mw"] % 25 == 0
 
 
