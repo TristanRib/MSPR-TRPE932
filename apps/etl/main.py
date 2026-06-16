@@ -303,7 +303,7 @@ MIN_SLOTS_PER_MONTH    = 200    # slots minimum pour considérer la référence 
 
 
 _PSI_WEATHER_FEATURES = {
-    "temperature_2m", "apparent_temperature", "precipitation", "cloud_cover",
+    "temperature_2m", "apparent_temperature", "cloud_cover",
     "heating_apparent", "cooling_apparent",
 }
 
@@ -335,7 +335,7 @@ def _check_feature_psi():
         df["heating_apparent"] = (17 - df["apparent_temperature"]).clip(lower=0)
         df["cooling_apparent"] = (df["apparent_temperature"] - 21).clip(lower=0)
 
-        recent = df.tail(336)  # ~7 jours à 30-min
+        recent = df.tail(1440)  # ~30 jours à 30-min
         month  = pd.to_datetime(recent["Date et Heure"], utc=True).dt.month.mode()[0]
 
         if month not in distributions:
@@ -358,6 +358,7 @@ def _check_feature_psi():
                 continue
             cur_pct = counts / counts.sum()
             cur_pct = np.where(cur_pct == 0, 1e-4, cur_pct)
+            ref_pct = np.where(ref_pct == 0, 1e-4, ref_pct)
             psi = float(np.sum((cur_pct - ref_pct) * np.log(cur_pct / ref_pct)))
 
             if psi > 0.25:

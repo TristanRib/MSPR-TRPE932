@@ -188,3 +188,52 @@ class TestCheckFeaturePsi:
         monkeypatch.setenv("MODELS_DIR", str(tmp_path))
         # Dossier existe mais pas de feature_distributions.pkl
         etl._check_feature_psi()
+
+
+# ── main() — APIs sources indisponibles ──────────────────────────────────────
+
+class TestMainApiDown:
+    """Comportement de main() quand les APIs sources (RTE, Open-Meteo) sont down."""
+
+    def _patch_common(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(etl, "RAW_DIR",                 tmp_path)
+        monkeypatch.setattr(etl, "_find_gaps",              lambda: [])
+        monkeypatch.setattr(etl, "update_datacard",         MagicMock())
+        monkeypatch.setattr(etl, "_check_feature_psi",      MagicMock())
+        monkeypatch.setattr(etl, "_check_prediction_drift", MagicMock())
+        mock_upsert = MagicMock()
+        monkeypatch.setattr(etl, "upsert_raw", mock_upsert)
+        return mock_upsert
+
+    def test_les_deux_down_erreur_immediate_sans_upsert(self, monkeypatch, tmp_path):
+        mock_upsert = self._patch_common(monkeypatch, tmp_path)
+        monkeypatch.setattr(etl, "fetch_energy",           MagicMock(side_effect=RuntimeError("RTE down")))
+        monkeypatch.setattr(etl, "fetch_weather_forecast", MagicMock(side_effect=RuntimeError("OpenMeteo down")))
+        with pytest.raises(RuntimeError, match="indisponibles"):
+            etl.main()
+        mock_upsert.assert_not_called()
+
+    def test_energie_down_upsert_skipped_erreur_partielle(self, monkeypatch, tmp_path):
+        mock_upsert = self._patch_common(monkeypatch, tmp_path)
+        monkeypatch.setattr(etl, "fetch_energy", MagicMock(side_effect=RuntimeError("RTE down")))
+        fake_weather = pd.DataFrame(
+            {"temperature_2m": [15.0], "apparent_temperature": [14.0],
+             "precipitation": [0.0], "cloud_cover": [30.0]},
+            index=pd.to_datetime(["2026-06-01T12:00:00"], utc=True),
+        )
+        monkeypatch.setattr(etl, "fetch_weather_forecast", MagicMock(return_value=fake_weather))
+        with pytest.raises(RuntimeError, match="énergie"):
+            etl.main()
+        mock_upsert.assert_not_called()
+
+    def test_meteo_down_insere_energie_puis_erreur_partielle(self, monkeypatch, tmp_path):
+        mock_upsert = self._patch_common(monkeypatch, tmp_path)
+        fake_energy = pd.DataFrame({
+            "Date et Heure":    ["2026-06-01T12:00:00+00:00"],
+            "Consommation (MW)": [40000.0],
+        })
+        monkeypatch.setattr(etl, "fetch_energy",           MagicMock(return_value=fake_energy))
+        monkeypatch.setattr(etl, "fetch_weather_forecast", MagicMock(side_effect=RuntimeError("OpenMeteo down")))
+        with pytest.raises(RuntimeError, match="météo"):
+            etl.main()
+        mock_upsert.assert_called_once()

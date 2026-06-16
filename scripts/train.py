@@ -145,29 +145,50 @@ def save_metrics_to_bq(metrics: dict):
 
 
 def save_feature_distributions(X_train_df: pd.DataFrame):
+    PSI_COLS = [c for c in [
+        "temperature_2m", "apparent_temperature", "cloud_cover",
+        "heating_apparent", "cooling_apparent",
+    ] if c in X_train_df.columns]
+
+    WINDOW = 1440  # 30 jours × 48 slots — identique à la fenêtre ETL
+    STRIDE = 240   # avance de 5 jours à la fois
+
     angle  = np.arctan2(X_train_df["month_sin"].values, X_train_df["month_cos"].values)
     months = np.round(angle * 12 / (2 * np.pi)).astype(int) % 12
     months = np.where(months == 0, 12, months)
 
     distributions: dict = {}
     for m in range(1, 13):
-        mask = months == m
-        if mask.sum() < 100:
+        mask  = months == m
+        idx_m = np.where(mask)[0]
+        if len(idx_m) < WINDOW:
             continue
-        month_df = X_train_df[mask]
         distributions[m] = {}
-        for col in X_train_df.columns:
-            vals = month_df[col].dropna().values
-            if len(vals) < 2:
+        for col in PSI_COLS:
+            vals_all = X_train_df[col].iloc[idx_m].dropna().values
+            if len(vals_all) < 2:
                 continue
-            bins = np.unique(np.percentile(vals, np.linspace(0, 100, 11)))
+            # Bins déciles sur l'ensemble du mois (couverture maximale)
+            bins = np.unique(np.percentile(vals_all, np.linspace(0, 100, 11)))
             if len(bins) < 2:
                 continue
             bins = bins.copy()
             bins[0]  -= 1e-8
             bins[-1] += 1e-8
-            counts, _ = np.histogram(vals, bins=bins)
-            ref_pct = counts / counts.sum()
+            # Histogramme de chaque fenêtre 7j → médiane des proportions
+            # Référence = "à quoi ressemble une semaine typique de ce mois"
+            window_pcts = []
+            for start in range(0, len(idx_m) - WINDOW, STRIDE):
+                w_vals = X_train_df[col].iloc[idx_m[start:start + WINDOW]].dropna().values
+                if len(w_vals) < 50:
+                    continue
+                counts, _ = np.histogram(w_vals, bins=bins)
+                if counts.sum() == 0:
+                    continue
+                window_pcts.append(counts / counts.sum())
+            if len(window_pcts) < 5:
+                continue
+            ref_pct = np.median(window_pcts, axis=0)
             ref_pct = np.where(ref_pct == 0, 1e-4, ref_pct).tolist()
             distributions[m][col] = {"bins": bins.tolist(), "ref_pct": ref_pct}
 
