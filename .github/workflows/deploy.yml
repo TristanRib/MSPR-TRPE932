@@ -114,29 +114,6 @@ jobs:
             --update-env-vars RAW_DIR=/app/gcs/raw,MODELS_DIR=/app/gcs/models \
             --quiet
 
-      - name: Setup Monitoring Alert
-        if: ${{ vars.ALERT_EMAIL != '' }}
-        run: |
-          CHANNEL=$(gcloud beta monitoring channels list \
-            --filter='display_name="Cloud Run Warnings Email"' \
-            --format="value(name)" --limit=1)
-          if [ -z "$CHANNEL" ]; then
-            CHANNEL=$(gcloud beta monitoring channels create \
-              --display-name="Cloud Run Warnings Email" \
-              --type=email \
-              --channel-labels=email_address=${{ vars.ALERT_EMAIL }} \
-              --format="value(name)" --quiet)
-          fi
-          POLICY_JSON=$(sed "s|CHANNEL_PLACEHOLDER|$CHANNEL|g" infra/alert_policy.json)
-          POLICY=$(gcloud beta monitoring policies list \
-            --filter='display_name="Cloud Run WARNING logs"' \
-            --format="value(name)" --limit=1)
-          if [ -z "$POLICY" ]; then
-            echo "$POLICY_JSON" | gcloud beta monitoring policies create --policy-from-file=/dev/stdin --quiet
-          else
-            echo "$POLICY_JSON" | gcloud beta monitoring policies update "$POLICY" --policy-from-file=/dev/stdin --quiet
-          fi
-
       - name: Deploy Workflow ETL-Forecast
         run: |
           gcloud workflows deploy etl-forecast \
